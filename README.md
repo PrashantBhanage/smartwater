@@ -62,14 +62,14 @@ psql -U postgres
 ```
 Inside the `psql` prompt:
 ```sql
-CREATE DATABASE water_billing_db;
+CREATE DATABASE smartwaterdb;
 \q
 ```
 
 ### 3. Configure local credentials
 Create `src/main/resources/application-local.properties` (this file is gitignored and must be created manually — it does **not** come from the repo):
 ```properties
-DB_URL=jdbc:postgresql://localhost:5432/water_billing_db
+DB_URL=jdbc:postgresql://localhost:5432/smartwaterdb
 DB_USERNAME=postgres
 DB_PASSWORD=your_postgres_password
 JWT_SECRET=replace_with_a_random_32+_character_secret
@@ -169,3 +169,6 @@ Full interactive docs available via Swagger UI once the app is running.
 - [ ] Module 3: React dashboard, admin panel, PDF invoices
 - [ ] Module 4: End-to-end testing, load testing, final docs
 
+## License
+
+Internal internship project — no license specified yet.
