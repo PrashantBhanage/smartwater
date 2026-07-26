@@ -5,7 +5,7 @@ function App() {
 
   useEffect(() => {
     // Reaching out to your Spring Boot API
-    fetch("http://localhost:8080/api/test")
+    fetch("/api/test")
       .then(response => response.text())
       .then(data => setMessage(data))
       .catch(error => setMessage("Error: Could not connect to backend. Is Spring Boot running?"));
