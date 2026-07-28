@@ -42,6 +42,15 @@ public class GlobalExceptionHandler {
     }
 
     // ------------------------------------------------------------------
+    // Business-rule / illegal argument → 400 Bad Request
+    // ------------------------------------------------------------------
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException ex, HttpServletRequest req) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI(), null);
+    }
+
+    // ------------------------------------------------------------------
     // 404 Not Found
     // ------------------------------------------------------------------
     @ExceptionHandler(ResourceNotFoundException.class)

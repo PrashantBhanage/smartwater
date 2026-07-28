@@ -159,6 +159,23 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <!--
+                Configure Surefire to pick up both unit tests (*Test, *Tests)
+                and integration tests (*IT) in a single 'mvn test' run.
+                The *IT classes use @SpringBootTest + H2 (no Docker required).
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

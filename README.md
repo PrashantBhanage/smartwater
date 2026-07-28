@@ -79,33 +79,36 @@ JWT_SECRET=replace_with_a_random_32+_character_secret
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
-Flyway will automatically create all tables on first startup.
+Flyway will automatically create all tables and seed a default admin on first startup.
 
 The app runs at: `http://localhost:8080`
+
+### Default admin credentials
+
+On a fresh database, Flyway migration `V2__seed_default_admin.sql` creates:
+
+| Field | Value |
+|---|---|
+| Email | `admin@smartwater.local` |
+| Password | `SmartWater#2024` |
+| Role | `ADMIN` |
+| Apartment | `Default Apartment` |
+
+**Change this password immediately in production.** The seed uses `WHERE NOT EXISTS` guards, so it is a no-op if the email or any apartment already exists.
 
 ### 5. Explore the API via Swagger
 Open: `http://localhost:8080/swagger-ui/index.html`
 
 Flow to test:
-1. `POST /api/auth/register` — register a user
-2. `POST /api/auth/login` — get a JWT token
-3. Click **Authorize** in Swagger UI, paste the token
-4. Try any protected endpoint (e.g. create an apartment, log water usage)
+1. `POST /api/auth/login` — sign in with the default admin (or register a new user)
+2. Click **Authorize** in Swagger UI, paste the JWT token
+3. Try any protected endpoint (e.g. create an apartment, log water usage)
 
 ### 6. Run tests
 ```bash
 mvn test
 ```
 Tests use H2 in PostgreSQL-compatibility mode — no external database or Docker required.
-
-## Known Setup Gotcha
-
-There's currently a bootstrapping issue: creating the first `ADMIN` user requires an `apartmentId`, but apartments can only be created by an `ADMIN`. Until this is fixed, bootstrap manually via a direct SQL insert into the `apartments` table before registering your first admin user, e.g.:
-```sql
-INSERT INTO apartments (name, address, total_households, admin_contact, created_at)
-VALUES ('Test Apartment', 'Test Address', 10, 'admin@example.com', now());
-```
-Then register your admin user with `apartmentId: 1`.
 
 ## Frontend Setup
 
@@ -164,7 +167,6 @@ Full interactive docs available via Swagger UI once the app is running.
 
 ## Roadmap
 
-- [ ] Fix admin/apartment bootstrap chicken-and-egg problem
 - [ ] Module 2: Tiered billing engine, shared-cost distribution, leak alerts
 - [ ] Module 3: React dashboard, admin panel, PDF invoices
 - [ ] Module 4: End-to-end testing, load testing, final docs
