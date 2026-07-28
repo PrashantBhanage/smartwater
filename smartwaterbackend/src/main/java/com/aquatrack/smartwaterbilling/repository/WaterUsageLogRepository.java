@@ -31,5 +31,18 @@ public interface WaterUsageLogRepository extends JpaRepository<WaterUsageLog, Lo
             @Param("start") LocalDate start,
             @Param("end") LocalDate end);
 
+    @Query("SELECT w.household.id, COALESCE(SUM(w.volumeUsedLiters), 0) " +
+           "FROM WaterUsageLog w " +
+           "WHERE w.household.apartment.id = :apartmentId " +
+           "AND w.readingDate BETWEEN :start AND :end " +
+           "GROUP BY w.household.id")
+    List<Object[]> sumVolumeByHouseholdInRange(
+            @Param("apartmentId") Long apartmentId,
+            @Param("start") LocalDate start,
+            @Param("end") LocalDate end);
+
+    List<WaterUsageLog> findAllByHouseholdIdAndReadingDateBetween(
+            Long householdId, LocalDate start, LocalDate end);
+
     long countByHouseholdIdAndUsageStatus(Long householdId, UsageStatus status);
 }

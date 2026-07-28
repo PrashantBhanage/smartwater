@@ -29,19 +29,19 @@ public class TariffPlan {
     private Long id;
 
     /** Maximum volume (in kilolitres) eligible for the Tier 1 rate. */
-    @Column(nullable = false, precision = 10, scale = 3)
+    @Column(name = "tier1_limit_kl", nullable = false, precision = 10, scale = 3)
     private BigDecimal tier1LimitKl;
 
     /** Price per kilolitre for consumption up to tier1LimitKl. */
-    @Column(nullable = false, precision = 10, scale = 4)
+    @Column(name = "tier1_rate", nullable = false, precision = 10, scale = 4)
     private BigDecimal tier1Rate;
 
     /** Price per kilolitre for consumption exceeding tier1LimitKl. */
-    @Column(nullable = false, precision = 10, scale = 4)
+    @Column(name = "tier2_rate", nullable = false, precision = 10, scale = 4)
     private BigDecimal tier2Rate;
 
     /** Date from which this plan becomes effective. */
-    @Column(nullable = false)
+    @Column(name = "effective_from_date", nullable = false)
     private LocalDate effectiveFromDate;
 
     @Column(nullable = false, updatable = false)

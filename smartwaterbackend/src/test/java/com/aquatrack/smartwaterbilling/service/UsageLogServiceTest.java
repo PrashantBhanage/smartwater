@@ -44,6 +44,9 @@ class UsageLogServiceTest {
     @Mock
     private HouseholdRepository householdRepository;
 
+    @Mock
+    private AlertService alertService;
+
     @InjectMocks
     private UsageLogService usageLogService;
 

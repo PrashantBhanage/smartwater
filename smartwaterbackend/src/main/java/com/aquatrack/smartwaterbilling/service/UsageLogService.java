@@ -51,6 +51,7 @@ public class UsageLogService {
 
     private final WaterUsageLogRepository usageLogRepository;
     private final HouseholdRepository householdRepository;
+    private final AlertService alertService;
 
     // ----------------------------------------------------------------
     // Manual entry — POST /api/usage-logs
@@ -80,7 +81,9 @@ public class UsageLogService {
                 .usageStatus(status)
                 .build();
 
-        return toResponse(usageLogRepository.save(log), household);
+        WaterUsageLog saved = usageLogRepository.save(log);
+        alertService.checkThreshold(household, request.getVolumeUsedLiters(), request.getReadingDate());
+        return toResponse(saved, household);
     }
 
     // ----------------------------------------------------------------
@@ -177,6 +180,7 @@ public class UsageLogService {
 
             usageLogRepository.save(log);
             rowsInserted++;
+            alertService.checkThreshold(household, parsed.volumeUsedLiters, parsed.readingDate);
 
             switch (status) {
                 case GREEN  -> greenCount++;

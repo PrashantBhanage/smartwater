@@ -9,7 +9,10 @@
 --   Resident: it-resident@test.com / TestPass#1
 -- =============================================================
 
--- Clean slate (H2 with TRUNCATE ... CASCADE; order matters due to FKs)
+-- Clean slate (order matters due to FKs — Module 2 tables first)
+DELETE FROM alerts;
+DELETE FROM invoices;
+DELETE FROM water_purchases;
 DELETE FROM water_usage_logs;
 DELETE FROM users;
 DELETE FROM households;

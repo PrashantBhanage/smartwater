@@ -24,12 +24,15 @@ Built as part of an 8-week internship project (Springboard). This repo is a mono
 **Module 1 of 4 — Complete** ✅
 Schema, authentication, core APIs, water usage logging (manual + CSV bulk upload), colour-coded usage alerts, and automated tests are done.
 
-**Modules 2–4 — Not started yet**
+**Module 2 of 4 — Complete** ✅
+Tariff billing engine, water purchase tracking, shared-cost distribution, billing-cycle finalize/archive with invoices, threshold + leak alerts.
+
+**Modules 3–4 — Not started yet**
 
 | Module | Status | Covers |
 |---|---|---|
 | 1. Schema, Usage Logging & Core APIs | ✅ Done | DB schema, JWT auth, apartment/household CRUD, usage logging, CSV upload, colour-coding |
-| 2. Billing Engine, Distribution & Alerts | ⬜ Pending | Tiered tariff billing, shared-cost splitting, leak/overuse alert notifications |
+| 2. Billing Engine, Distribution & Alerts | ✅ Done | Tiered tariff billing, purchase tracking, shared-cost splitting, cycle finalize/invoices, leak/threshold alerts |
 | 3. React Dashboard, Admin Panel & Invoices | ⬜ Pending | Resident dashboard, admin panel, PDF invoice generation |
 | 4. Integration, Testing & Finalization | ⬜ Pending | End-to-end testing, load testing, documentation, final demo |
 
@@ -162,12 +165,19 @@ This value is stored, not recalculated later, so historical data stays accurate 
 | `POST /api/usage-logs` | Authenticated | Log a manual water usage reading |
 | `GET /api/usage-logs?householdId=` | Authenticated | View usage logs |
 | `POST /api/usage-logs/bulk-upload` | ADMIN | Upload a CSV of usage readings |
+| `POST /api/tariff-plans` | ADMIN | Create a tiered tariff plan for an apartment |
+| `GET /api/tariff-plans?apartmentId=` | Authenticated | List tariff plans |
+| `POST /api/billing-cycles` | ADMIN | Open a billing cycle |
+| `PATCH /api/billing-cycles/{id}/finalize` | ADMIN | Finalize cycle and generate invoices |
+| `PATCH /api/billing-cycles/{id}/archive` | ADMIN | Archive a finalized cycle |
+| `GET /api/billing-cycles/{id}/invoices` | Authenticated | List invoices for a cycle |
+| `POST /api/purchases` | ADMIN | Record a bulk water purchase |
+| `GET /api/alerts?householdId=` | Authenticated | List in-app usage/leak alerts |
 
 Full interactive docs available via Swagger UI once the app is running.
 
 ## Roadmap
 
-- [ ] Module 2: Tiered billing engine, shared-cost distribution, leak alerts
 - [ ] Module 3: React dashboard, admin panel, PDF invoices
 - [ ] Module 4: End-to-end testing, load testing, final docs
 
