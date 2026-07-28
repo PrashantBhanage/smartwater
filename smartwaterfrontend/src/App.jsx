@@ -1,24 +1,60 @@
-import { useState, useEffect } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import AppShell from './components/AppShell'
+import LoginPage from './pages/LoginPage'
+import {
+  AdminOverviewPage,
+  AdminHouseholdsPage,
+  AdminBillingPage,
+  AdminUploadsPage,
+  ResidentDashboardPage,
+  ResidentInvoicesPage,
+  ResidentAlertsPage,
+} from './pages/stubs'
 
-function App() {
-  const [message, setMessage] = useState("Connecting to backend...")
-
-  useEffect(() => {
-    // Reaching out to your Spring Boot API
-    fetch("/api/test")
-      .then(response => response.text())
-      .then(data => setMessage(data))
-      .catch(error => setMessage("Error: Could not connect to backend. Is Spring Boot running?"));
-  }, [])
-
-  return (
-    <div style={{ textAlign: "center", marginTop: "100px", fontFamily: "sans-serif" }}>
-      <h1>AquaTrack Architecture Test</h1>
-      <h2 style={{ color: message === "Connection Successful!" ? "green" : "red" }}>
-        Status: {message}
-      </h2>
-    </div>
-  )
+function HomeRedirect() {
+  const { isAuthenticated, user } = useAuth()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/resident'} replace />
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<HomeRedirect />} />
+
+          <Route
+            element={
+              <ProtectedRoute role="ADMIN">
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/admin" element={<AdminOverviewPage />} />
+            <Route path="/admin/households" element={<AdminHouseholdsPage />} />
+            <Route path="/admin/billing" element={<AdminBillingPage />} />
+            <Route path="/admin/uploads" element={<AdminUploadsPage />} />
+          </Route>
+
+          <Route
+            element={
+              <ProtectedRoute role="RESIDENT">
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/resident" element={<ResidentDashboardPage />} />
+            <Route path="/resident/invoices" element={<ResidentInvoicesPage />} />
+            <Route path="/resident/alerts" element={<ResidentAlertsPage />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}

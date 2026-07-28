@@ -1,0 +1,124 @@
+/* ============================================================
+   SmartWater — Design tokens
+   Direction: macOS System Settings / Finder
+   Accent: eucalyptus teal (water-adjacent, not stock blue/purple)
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --sw-bg: #f2f3f5;
+  --sw-bg-elevated: #ffffff;
+  --sw-bg-sidebar: rgba(246, 246, 248, 0.78);
+  --sw-bg-glass: rgba(255, 255, 255, 0.72);
+  --sw-bg-glass-strong: rgba(255, 255, 255, 0.88);
+  --sw-bg-hover: rgba(0, 0, 0, 0.04);
+  --sw-bg-active: rgba(14, 124, 107, 0.10);
+  --sw-bg-input: rgba(255, 255, 255, 0.92);
+
+  /* Text */
+  --sw-text: #1d1d1f;
+  --sw-text-secondary: #6e6e73;
+  --sw-text-tertiary: #8e8e93;
+  --sw-text-on-accent: #ffffff;
+
+  /* Accent — eucalyptus */
+  --sw-accent: #0e7c6b;
+  --sw-accent-hover: #0b6457;
+  --sw-accent-soft: rgba(14, 124, 107, 0.12);
+  --sw-accent-ring: rgba(14, 124, 107, 0.35);
+
+  /* Semantic */
+  --sw-green: #248a3d;
+  --sw-green-soft: rgba(36, 138, 61, 0.12);
+  --sw-yellow: #b38300;
+  --sw-yellow-soft: rgba(179, 131, 0, 0.14);
+  --sw-red: #d70015;
+  --sw-red-soft: rgba(215, 0, 21, 0.10);
+
+  /* Borders & radius */
+  --sw-border: rgba(0, 0, 0, 0.08);
+  --sw-border-strong: rgba(0, 0, 0, 0.12);
+  --sw-radius: 11px;
+  --sw-radius-sm: 8px;
+  --sw-radius-lg: 16px;
+  --sw-radius-pill: 999px;
+
+  /* Elevation (prefer border + blur over heavy shadows) */
+  --sw-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --sw-shadow-panel: 0 8px 30px rgba(0, 0, 0, 0.06);
+
+  /* Layout */
+  --sw-sidebar-width: 220px;
+  --sw-content-max: 1080px;
+  --sw-space-1: 4px;
+  --sw-space-2: 8px;
+  --sw-space-3: 12px;
+  --sw-space-4: 16px;
+  --sw-space-5: 24px;
+  --sw-space-6: 32px;
+  --sw-space-7: 48px;
+
+  /* Type */
+  --sw-font: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue",
+    Inter, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sw-font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --sw-fs-xs: 0.75rem;
+  --sw-fs-sm: 0.8125rem;
+  --sw-fs-base: 0.9375rem;
+  --sw-fs-md: 1.0625rem;
+  --sw-fs-lg: 1.375rem;
+  --sw-fs-xl: 1.75rem;
+  --sw-fs-display: 2.25rem;
+
+  --sw-lh-tight: 1.2;
+  --sw-lh: 1.45;
+
+  /* Motion */
+  --sw-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --sw-duration: 180ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sw-font);
+  font-size: var(--sw-fs-base);
+  line-height: var(--sw-lh);
+  color: var(--sw-text);
+  background: var(--sw-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--sw-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--sw-accent-soft);
+}

@@ -1,0 +1,164 @@
+.login {
+  position: relative;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  overflow: hidden;
+}
+
+.login__atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(165deg, #eef1f3 0%, #f5f6f7 42%, #e8eeec 100%);
+  z-index: 0;
+}
+
+.login__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.55;
+  animation: login-drift 14s var(--sw-ease) infinite alternate;
+}
+
+.login__orb--a {
+  width: 420px;
+  height: 420px;
+  top: -80px;
+  right: -60px;
+  background: radial-gradient(circle, rgba(26, 163, 140, 0.35), transparent 68%);
+}
+
+.login__orb--b {
+  width: 360px;
+  height: 360px;
+  bottom: -100px;
+  left: -40px;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.06), transparent 70%);
+  animation-delay: -4s;
+}
+
+.login__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.login__stage {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 400px);
+  animation: login-rise 520ms var(--sw-ease) both;
+}
+
+.login__panel {
+  padding: 36px 32px 28px;
+  border-radius: var(--sw-radius-lg);
+  box-shadow: var(--sw-shadow-panel);
+}
+
+.login__header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login__mark {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, #1aa38c 0%, var(--sw-accent) 55%, #0a5c50 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 18px rgba(14, 124, 107, 0.22);
+  animation: login-mark 700ms var(--sw-ease) both;
+}
+
+.login__brand {
+  margin: 0;
+  font-size: var(--sw-fs-display);
+  font-weight: 680;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  color: var(--sw-text);
+}
+
+.login__tagline {
+  margin: 10px 0 0;
+  font-size: var(--sw-fs-sm);
+  color: var(--sw-text-secondary);
+  letter-spacing: -0.01em;
+  max-width: 28ch;
+  margin-inline: auto;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login__submit {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 6px;
+  font-size: var(--sw-fs-base);
+}
+
+.login__hint {
+  margin: 22px 0 0;
+  text-align: center;
+  font-size: var(--sw-fs-xs);
+  color: var(--sw-text-tertiary);
+}
+
+.login__hint code {
+  font-family: var(--sw-font-mono);
+  font-size: 0.7rem;
+  color: var(--sw-text-secondary);
+}
+
+@keyframes login-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes login-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes login-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-18px, 14px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login__orb,
+  .login__stage,
+  .login__mark {
+    animation: none;
+  }
+}
