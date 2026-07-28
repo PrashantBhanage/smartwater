@@ -1,6 +1,7 @@
 package com.aquatrack.smartwaterbilling.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,12 +22,13 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Spring Security 6 configuration.
  * <ul>
- *   <li>Stateless (JWT-based), no CSRF needed.</li>
+ *   <li>Stateless (JWT-based), CSRF disabled.</li>
  *   <li>{@code /api/auth/**} is public.</li>
  *   <li>{@code /api/test} is public (architecture connectivity test).</li>
  *   <li>{@code /swagger-ui/**}, {@code /swagger-ui.html} are public (Swagger UI).</li>
@@ -43,32 +45,35 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
+    /**
+     * Comma-separated CORS origin patterns.
+     * Default covers Vite's shifting 517x ports (5173, 5174, …).
+     * Override with {@code APP_CORS_ALLOWED_ORIGIN_PATTERNS}.
+     */
+    @Value("${app.cors.allowed-origin-patterns:http://localhost:517*,http://127.0.0.1:517*}")
+    private String corsAllowedOriginPatterns;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // Enable CORS — picks up the CorsConfigurationSource bean below
                 .cors(Customizer.withDefaults())
-                // Disable CSRF for stateless REST API
                 .csrf(AbstractHttpConfigurer::disable)
-                // Stateless — no session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Allow all CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         // Public auth endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        // Public apartments and households list for registration
+                        .requestMatchers(HttpMethod.GET, "/api/apartments", "/api/households").permitAll()
                         // Public test/health endpoint
                         .requestMatchers("/api/test").permitAll()
                         // Swagger UI — must be before the authenticated() catch-all
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // OpenAPI spec endpoints
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
-                        // All other requests require authentication;
-                        // fine-grained ADMIN/RESIDENT checks are done via @PreAuthorize
                         .anyRequest().authenticated())
-                // Register JWT filter before Spring's default username/password filter
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
@@ -76,13 +81,17 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS configuration source — used by Spring Security's CORS filter.
-     * Allows the Vite dev server origin to make cross-origin requests.
+     * Uses {@link CorsConfiguration#setAllowedOriginPatterns} (not exact origins)
+     * so Vite can bind 5173/5174/… without a config change each time.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        List<String> patterns = Arrays.stream(corsAllowedOriginPatterns.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOriginPatterns(patterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

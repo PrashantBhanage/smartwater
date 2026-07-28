@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Business logic for household registration, resident assignment, and meter configuration.
@@ -66,6 +67,16 @@ public class HouseholdService {
     public HouseholdResponse findById(Long id) {
         return toResponse(householdRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Household", id)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<HouseholdResponse> findByApartmentId(Long apartmentId) {
+        if (!apartmentRepository.existsById(apartmentId)) {
+            throw new ResourceNotFoundException("Apartment", apartmentId);
+        }
+        return householdRepository.findAllByApartmentId(apartmentId).stream()
+                .map(HouseholdService::toResponse)
+                .toList();
     }
 
     // ----------------------------------------------------------------

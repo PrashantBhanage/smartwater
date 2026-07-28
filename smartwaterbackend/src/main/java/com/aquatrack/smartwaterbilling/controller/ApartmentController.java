@@ -35,6 +35,14 @@ public class ApartmentController {
     }
 
     /**
+     * List all apartments (used by resident registration selectors).
+     */
+    @GetMapping
+    public ResponseEntity<java.util.List<ApartmentResponse>> listAll() {
+        return ResponseEntity.ok(apartmentService.findAll());
+    }
+
+    /**
      * Retrieve apartment details by ID.
      */
     @GetMapping("/{id}")

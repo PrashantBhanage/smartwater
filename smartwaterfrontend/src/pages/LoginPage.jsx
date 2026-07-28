@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import './LoginPage.css'
+import './AuthLayout.css'
 
 /**
  * Visual-direction showcase page.
- * Frosted panel on a soft atmospheric field — macOS System Settings tone.
+ * Redesigned in Japandi style — warm neutrals, quiet serif typography, and soft fades.
  */
 export default function LoginPage() {
   const { login, isAuthenticated, user } = useAuth()
@@ -34,26 +34,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login">
-      <div className="login__atmosphere" aria-hidden>
-        <div className="login__orb login__orb--a" />
-        <div className="login__orb login__orb--b" />
-        <div className="login__grain" />
-      </div>
+    <div className="auth">
+      <div className="auth__grain" aria-hidden />
 
-      <main className="login__stage">
-        <section className="login__panel sw-glass" aria-labelledby="login-brand">
-          <header className="login__header">
-            <div className="login__mark" aria-hidden />
-            <h1 id="login-brand" className="login__brand">
+      <main className="auth__stage">
+        <section className="auth__panel sw-panel" aria-labelledby="login-brand">
+          <header className="auth__header">
+            <h1 id="login-brand" className="auth__brand">
               SmartWater
             </h1>
-            <p className="login__tagline">
-              Apartment water usage, shared costs, and billing — clearly.
+            <p className="auth__tagline">
+              Apartment water usage, cost splitting, and community billing.
             </p>
           </header>
 
-          <form className="login__form" onSubmit={handleSubmit} noValidate>
+          <form className="auth__form" onSubmit={handleSubmit} noValidate>
             {error ? (
               <div className="sw-banner sw-banner--error" role="alert">
                 {error}
@@ -86,7 +81,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="sw-btn sw-btn--primary login__submit"
+              className="sw-btn sw-btn--primary auth__submit"
               disabled={loading}
             >
               {loading ? <span className="sw-spinner" aria-hidden /> : null}
@@ -94,9 +89,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="login__hint">
-            Default admin seed: <code>admin@smartwater.local</code>
-          </p>
+          <footer className="auth__footer">
+            New resident? <Link to="/register">Create an account</Link>
+          </footer>
         </section>
       </main>
     </div>

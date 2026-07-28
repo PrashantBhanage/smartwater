@@ -157,6 +157,16 @@ public class BillingCycleService {
     }
 
     @Transactional(readOnly = true)
+    public List<BillingCycleResponse> listByApartment(Long apartmentId) {
+        if (!apartmentRepository.existsById(apartmentId)) {
+            throw new ResourceNotFoundException("Apartment", apartmentId);
+        }
+        return billingCycleRepository.findAllByApartmentId(apartmentId).stream()
+                .map(c -> toResponse(c, null))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<InvoiceResponse> listInvoices(Long cycleId) {
         if (!billingCycleRepository.existsById(cycleId)) {
             throw new ResourceNotFoundException("BillingCycle", cycleId);

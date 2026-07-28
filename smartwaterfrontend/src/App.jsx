@@ -3,12 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppShell from './components/AppShell'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ResidentDashboardPage from './pages/ResidentDashboardPage'
+import AdminHouseholdsPage from './pages/AdminHouseholdsPage'
 import {
   AdminOverviewPage,
-  AdminHouseholdsPage,
   AdminBillingPage,
   AdminUploadsPage,
-  ResidentDashboardPage,
   ResidentInvoicesPage,
   ResidentAlertsPage,
 } from './pages/stubs'
@@ -25,6 +26,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/" element={<HomeRedirect />} />
 
           <Route

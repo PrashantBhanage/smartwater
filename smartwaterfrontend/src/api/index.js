@@ -1,11 +1,14 @@
 import api from './client'
 
 export const apartmentsApi = {
+  list: () => api.get('/apartments').then((r) => r.data),
   get: (id) => api.get(`/apartments/${id}`).then((r) => r.data),
   create: (payload) => api.post('/apartments', payload).then((r) => r.data),
 }
 
 export const householdsApi = {
+  listByApartment: (apartmentId) =>
+    api.get('/households', { params: { apartmentId } }).then((r) => r.data),
   get: (id) => api.get(`/households/${id}`).then((r) => r.data),
   create: (payload) => api.post('/households', payload).then((r) => r.data),
   assignResident: (id, residentEmail) =>
@@ -42,11 +45,18 @@ export const purchasesApi = {
 }
 
 export const billingApi = {
+  listByApartment: (apartmentId) =>
+    api.get('/billing-cycles', { params: { apartmentId } }).then((r) => r.data),
   open: (payload) => api.post('/billing-cycles', payload).then((r) => r.data),
   get: (id) => api.get(`/billing-cycles/${id}`).then((r) => r.data),
   finalize: (id) => api.patch(`/billing-cycles/${id}/finalize`).then((r) => r.data),
   archive: (id) => api.patch(`/billing-cycles/${id}/archive`).then((r) => r.data),
   invoices: (id) => api.get(`/billing-cycles/${id}/invoices`).then((r) => r.data),
+}
+
+export const invoicesApi = {
+  listByHousehold: (householdId) =>
+    api.get('/invoices', { params: { householdId } }).then((r) => r.data),
 }
 
 export const alertsApi = {

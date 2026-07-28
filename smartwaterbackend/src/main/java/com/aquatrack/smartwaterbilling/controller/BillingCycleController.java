@@ -49,6 +49,13 @@ public class BillingCycleController {
         return ResponseEntity.ok(billingCycleService.archive(id));
     }
 
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BillingCycleResponse>> listByApartment(
+            @RequestParam Long apartmentId) {
+        return ResponseEntity.ok(billingCycleService.listByApartment(apartmentId));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BillingCycleResponse> getById(@PathVariable Long id) {

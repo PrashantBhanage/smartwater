@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * REST controller for household management.
  *
@@ -33,6 +35,15 @@ public class HouseholdController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<HouseholdResponse> create(@Valid @RequestBody HouseholdRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(householdService.create(request));
+    }
+
+    /**
+     * List households for an apartment (used by registration + admin panel).
+     */
+    @GetMapping
+    public ResponseEntity<List<HouseholdResponse>> listByApartment(
+            @RequestParam Long apartmentId) {
+        return ResponseEntity.ok(householdService.findByApartmentId(apartmentId));
     }
 
     /**

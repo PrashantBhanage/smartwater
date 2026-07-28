@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Business logic for apartment onboarding and retrieval.
  */
@@ -42,6 +44,13 @@ public class ApartmentService {
     public ApartmentResponse findById(Long id) {
         return toResponse(apartmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Apartment", id)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApartmentResponse> findAll() {
+        return apartmentRepository.findAll().stream()
+                .map(ApartmentService::toResponse)
+                .toList();
     }
 
     // ----------------------------------------------------------------
