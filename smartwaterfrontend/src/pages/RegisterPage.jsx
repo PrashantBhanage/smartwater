@@ -45,13 +45,12 @@ export default function RegisterPage() {
 
   // Fetch households when apartment changes
   useEffect(() => {
-    if (!selectedApartmentId) {
-      setHouseholds([])
-      setSelectedHouseholdId('')
-      return
-    }
-
     async function fetchHouseholds() {
+      if (!selectedApartmentId) {
+        setHouseholds([])
+        setSelectedHouseholdId('')
+        return
+      }
       setLoadingHouseholds(true)
       try {
         const data = await householdsApi.listByApartment(selectedApartmentId)

@@ -51,7 +51,22 @@ export default function AdminHouseholdsPage() {
   }
 
   useEffect(() => {
-    loadHouseholds()
+    async function load() {
+      if (!user?.apartmentId) {
+        setError('You are not associated with any apartment complex.')
+        setLoading(false)
+        return
+      }
+      try {
+        const data = await householdsApi.listByApartment(user.apartmentId)
+        setHouseholds(data)
+      } catch (err) {
+        setError(err.message || 'Failed to load households.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [user?.apartmentId])
 
   async function handleCreateHousehold(e) {

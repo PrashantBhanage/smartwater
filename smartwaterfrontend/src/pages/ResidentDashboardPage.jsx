@@ -17,13 +17,15 @@ export default function ResidentDashboardPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user?.householdId) {
-      setError('No household assigned to your user account. Please contact your administrator.')
-      setLoading(false)
-      return
-    }
-
     async function loadDashboardData() {
+      setError('')
+      setLoading(true)
+
+      if (!user?.householdId) {
+        setError('No household assigned to your user account. Please contact your administrator.')
+        setLoading(false)
+        return
+      }
       try {
         const hhData = await householdsApi.get(user.householdId)
         setHousehold(hhData)

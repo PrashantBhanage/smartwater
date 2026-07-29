@@ -140,6 +140,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .apartmentId(user.getApartment() != null ? user.getApartment().getId() : null)
+                .householdId(user.getHousehold() != null ? user.getHousehold().getId() : null)
                 .build();
     }
 
