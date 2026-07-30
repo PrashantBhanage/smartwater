@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './AuthLayout.css'
+import { Eye, EyeOff } from "lucide-react"
 
 /**
  * Visual-direction showcase page.
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('admin@smartwater.local')
   const [password, setPassword] = useState('SmartWater#2024')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -67,17 +69,29 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="sw-field">
-              <span className="sw-field__label">Password</span>
-              <input
-                className="sw-input"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
+           <label className="sw-field">
+  <span className="sw-field__label">Password</span>
+
+  <div className="sw-password">
+    <input
+      className="sw-input"
+      type={showPassword ? "text" : "password"}
+      autoComplete="current-password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      required
+    />
+
+    <button
+      type="button"
+      className="sw-password__toggle"
+      onClick={() => setShowPassword(!showPassword)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </div>
+</label>
 
             <button
               type="submit"

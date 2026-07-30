@@ -71,3 +71,31 @@
 .auth__footer a {
   font-weight: 500;
 }
+.sw-password {
+  position: relative;
+  width: 100%;
+}
+
+.sw-password .sw-input {
+  width: 100%;
+  padding-right: 3rem;
+}
+
+.sw-password__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: #6b7280;
+}
+
+.sw-password__toggle:hover {
+  color: #111827;
+}

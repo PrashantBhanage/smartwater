@@ -3,6 +3,7 @@ import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apartmentsApi, householdsApi } from '../api'
 import './AuthLayout.css'
+import { Eye, EyeOff } from "lucide-react";
 
 /**
  * Resident self-registration page.
@@ -15,6 +16,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [selectedApartmentId, setSelectedApartmentId] = useState('')
   const [selectedHouseholdId, setSelectedHouseholdId] = useState('')
 
@@ -142,15 +144,27 @@ export default function RegisterPage() {
             </label>
 
             <label className="sw-field">
-              <span className="sw-field__label">Password (Min 8 characters)</span>
-              <input
-                className="sw-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
+  <span className="sw-field__label">Password (Min 8 characters)</span>
+
+  <div className="sw-password">
+    <input
+      className="sw-input"
+      type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+      required
+    />
+
+    <button
+      type="button"
+      className="sw-password__toggle"
+      onClick={() => setShowPassword((prev) => !prev)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  </div>
+</label>
 
             <label className="sw-field">
               <span className="sw-field__label">Apartment Complex</span>
