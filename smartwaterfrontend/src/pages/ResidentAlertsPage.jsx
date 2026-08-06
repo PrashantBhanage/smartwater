@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getMyAlerts } from '../api'
 
 function formatNumber(value, suffix = '') {
@@ -7,7 +7,6 @@ function formatNumber(value, suffix = '') {
 
 export default function ResidentAlertsPage() {
   const [alerts, setAlerts] = useState([])
-  const [filteredAlerts, setFilteredAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filterStart, setFilterStart] = useState('')
@@ -22,7 +21,6 @@ export default function ResidentAlertsPage() {
           // Sort by date descending
           const sorted = [...data].sort((a, b) => new Date(b.readingDate) - new Date(a.readingDate))
           setAlerts(sorted)
-          setFilteredAlerts(sorted)
         }
       } catch (err) {
         if (active) setError(err.message || 'Failed to load alerts.')
@@ -36,7 +34,7 @@ export default function ResidentAlertsPage() {
     }
   }, [])
 
-  useEffect(() => {
+  const filteredAlerts = useMemo(() => {
     let result = [...alerts]
     if (filterStart) {
       result = result.filter((a) => a.readingDate >= filterStart)
@@ -44,8 +42,8 @@ export default function ResidentAlertsPage() {
     if (filterEnd) {
       result = result.filter((a) => a.readingDate <= filterEnd)
     }
-    setFilteredAlerts(result)
-  }, [filterStart, filterEnd, alerts])
+    return result
+  }, [alerts, filterStart, filterEnd])
 
   const getStatusColor = (type) => {
     if (type === 'THRESHOLD_EXCEEDED') return 'yellow'

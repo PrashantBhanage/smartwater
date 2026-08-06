@@ -5,14 +5,13 @@ import AppShell from './components/AppShell'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ResidentDashboardPage from './pages/ResidentDashboardPage'
+import ResidentInvoicesPage from './pages/ResidentInvoicesPage'
+import ResidentAlertsPage from './pages/ResidentAlertsPage'
 import AdminHouseholdsPage from './pages/AdminHouseholdsPage'
-import {
-  AdminOverviewPage,
-  AdminBillingPage,
-  AdminUploadsPage,
-  ResidentInvoicesPage,
-  ResidentAlertsPage,
-} from './pages/stubs'
+import AdminBulkPurchasesPage from './pages/AdminBulkPurchasesPage'
+import AdminCycleInvoicesPage from './pages/AdminCycleInvoicesPage'
+import AdminAlertsPage from './pages/AdminAlertsPage'
+import { AdminOverviewPage, AdminBillingPage, AdminUploadsPage } from './pages/stubs'
 
 function HomeRedirect() {
   const { isAuthenticated, user } = useAuth()
@@ -39,6 +38,9 @@ export default function App() {
             <Route path="/admin" element={<AdminOverviewPage />} />
             <Route path="/admin/households" element={<AdminHouseholdsPage />} />
             <Route path="/admin/billing" element={<AdminBillingPage />} />
+            <Route path="/admin/bulk-purchases" element={<AdminBulkPurchasesPage />} />
+            <Route path="/admin/invoices" element={<AdminCycleInvoicesPage />} />
+            <Route path="/admin/alerts" element={<AdminAlertsPage />} />
             <Route path="/admin/uploads" element={<AdminUploadsPage />} />
           </Route>
 

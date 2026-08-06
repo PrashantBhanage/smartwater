@@ -6,6 +6,9 @@ const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/households', label: 'Households' },
   { to: '/admin/billing', label: 'Billing' },
+  { to: '/admin/bulk-purchases', label: 'Bulk Purchases' },
+  { to: '/admin/invoices', label: 'Cycle Invoices' },
+  { to: '/admin/alerts', label: 'Alerts' },
   { to: '/admin/uploads', label: 'CSV Upload' },
 ]
 

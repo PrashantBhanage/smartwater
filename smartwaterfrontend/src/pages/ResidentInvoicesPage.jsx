@@ -46,6 +46,38 @@ export default function ResidentInvoicesPage() {
 
       {error && <div className="sw-banner sw-banner--error">{error}</div>}
 
+      {!loading && invoices.length > 0 && (() => {
+        const latest = invoices[0]
+        return (
+          <section className="sw-panel" style={{
+            padding: 'var(--sw-space-5)',
+            background: 'var(--sw-surface)',
+            border: '1px solid var(--sw-accent)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Current Cycle Balance
+                </div>
+                <div style={{ fontFamily: 'var(--sw-font-display)', fontSize: 'var(--sw-fs-display)', marginTop: 8, fontWeight: 500 }}>
+                  {formatMoney(latest.totalCharge)}
+                </div>
+                <p style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-tertiary)', margin: '8px 0 0' }}>
+                  Invoice #{latest.id} for Flat {latest.flatNumber}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span className="sw-status sw-status--neutral">Base: {formatMoney(latest.baseCharge)}</span>
+                <span className="sw-status sw-status--neutral">Shared: {formatMoney(latest.sharedCostAllocation)}</span>
+                <span className={`sw-status ${latest.paidStatus === 'PAID' ? 'sw-status--green' : 'sw-status--red'}`}>
+                  {latest.paidStatus}
+                </span>
+              </div>
+            </div>
+          </section>
+        )
+      })()}
+
       <section className="sw-panel" style={{ padding: 'var(--sw-space-5)' }}>
         {loading ? (
           <div style={{ display: 'grid', placeItems: 'center', minHeight: 160 }}>
