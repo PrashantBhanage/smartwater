@@ -38,4 +38,13 @@ public class TariffPlanController {
     public ResponseEntity<List<TariffPlanResponse>> listByApartment(@RequestParam Long apartmentId) {
         return ResponseEntity.ok(tariffPlanService.listByApartment(apartmentId));
     }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<TariffPlanResponse> update(
+            @PathVariable Long id,
+            @Valid @RequestBody com.aquatrack.smartwaterbilling.dto.tariff.TariffPlanUpdateRequest request) {
+        return ResponseEntity.ok(tariffPlanService.update(id, request));
+    }
 }
+

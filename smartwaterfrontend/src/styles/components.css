@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--sw-space-2);
-  min-height: 42px;
+  min-height: 48px;
   padding: 0 18px;
   border-radius: var(--sw-radius-sm);
   border: 1px solid transparent;
@@ -81,7 +81,7 @@
 .sw-input,
 .sw-select {
   width: 100%;
-  min-height: 44px;
+  min-height: 50px;
   padding: 0 14px;
   border-radius: var(--sw-radius-sm);
   border: 1px solid var(--sw-border-strong);
@@ -170,7 +170,7 @@
 .sw-page-title {
   margin: 0;
   font-family: var(--sw-font-display);
-  font-size: var(--sw-fs-xl);
+  font-size: 2.4rem;
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: var(--sw-lh-tight);
@@ -180,7 +180,7 @@
 .sw-page-subtitle {
   margin: 10px 0 0;
   color: var(--sw-text-secondary);
-  font-size: var(--sw-fs-sm);
+  font-size: var(--sw-fs-base);
   line-height: var(--sw-lh-loose);
   max-width: 42ch;
 }
@@ -219,20 +219,20 @@
 .sw-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--sw-fs-sm);
+  font-size: var(--sw-fs-base);
 }
 
 .sw-table th {
   text-align: left;
   font-weight: 500;
   color: var(--sw-text-tertiary);
-  padding: 10px 12px;
+  padding: 16px;
   border-bottom: 1px solid var(--sw-border);
   letter-spacing: 0.02em;
 }
 
 .sw-table td {
-  padding: 14px 12px;
+  padding: 18px 16px;
   border-bottom: 1px solid var(--sw-border);
   vertical-align: middle;
 }

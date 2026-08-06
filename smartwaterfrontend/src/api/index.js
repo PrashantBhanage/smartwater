@@ -63,3 +63,32 @@ export const alertsApi = {
   list: (householdId) =>
     api.get('/alerts', { params: { householdId } }).then((r) => r.data),
 }
+
+// Milestone 2 Billing APIs
+export const finalizeBillingCycle = (cycleId) =>
+  api.post(`/billing-cycles/${cycleId}/finalize`).then((r) => r.data);
+
+export const getInvoices = (cycleId) =>
+  api.get(`/billing-cycles/${cycleId}/invoices`).then((r) => r.data);
+
+export const getMyInvoices = () =>
+  api.get('/residents/my-invoices').then((r) => r.data);
+
+// Milestone 2 Bulk purchase APIs
+export const createBulkPurchase = (apartmentId, data) =>
+  api.post(`/apartments/${apartmentId}/bulk-purchases`, data).then((r) => r.data);
+
+export const getBulkPurchases = (apartmentId, start, end) =>
+  api.get(`/apartments/${apartmentId}/bulk-purchases`, { params: { cycleStart: start, cycleEnd: end } }).then((r) => r.data);
+
+// Milestone 2 Alert APIs
+export const getApartmentAlerts = (apartmentId, days = 30) =>
+  api.get(`/apartments/${apartmentId}/alerts`, { params: { days } }).then((r) => r.data);
+
+export const getMyAlerts = () =>
+  api.get('/residents/my-alerts').then((r) => r.data);
+
+// Tariff configuration edit PATCH API
+export const updateTariffPlan = (id, data) =>
+  api.patch(`/tariff-plans/${id}`, data).then((r) => r.data);
+

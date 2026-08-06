@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from "react-router-dom";
+import DashboardChart from "../components/dashboard/DashboardChart";
+import RecentBillingTable from "../components/dashboard/RecentBillingTable";
+import StatCard from "../components/dashboard/StatCard";
+
+import {
+  FaHome,
+  FaFileInvoice,
+  FaMoneyBillWave,
+  FaCalendarAlt,
+} from "react-icons/fa";
 import {
   alertsApi,
   billingApi,
@@ -54,6 +65,7 @@ function PageHeader({ title, subtitle }) {
 
 export function AdminOverviewPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [households, setHouseholds] = useState([])
   const [cycles, setCycles] = useState([])
   const [tariffs, setTariffs] = useState([])
@@ -76,52 +88,164 @@ export function AdminOverviewPage() {
           billingApi.listByApartment(user.apartmentId),
           tariffApi.list(user.apartmentId),
         ])
+
         if (!active) return
+
         setHouseholds(householdData)
         setCycles(cycleData)
+        console.log(cycleData);
         setTariffs(tariffData)
       } catch (err) {
-        if (active) setError(err.message || 'Failed to load admin overview.')
+        if (active) {
+          setError(err.message || 'Failed to load admin overview.')
+        }
       } finally {
-        if (active) setLoading(false)
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
     loadOverview()
+
     return () => {
       active = false
     }
   }, [user?.apartmentId])
 
   const openCycle = cycles.find((cycle) => cycle.status === 'OPEN')
+  const chartData = [
+  {
+    name: "Households",
+    value: households.length,
+  },
+  {
+    name: "Cycles",
+    value: cycles.length,
+  },
+  {
+    name: "Tariffs",
+    value: tariffs.length,
+  },
+];
 
   return (
-    <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
+    <div
+      className="sw-fade-in"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--sw-space-6)',
+      }}
+    >
       <PageHeader
         title="Overview"
         subtitle="Apartment operations, billing readiness, and recent setup status."
       />
+
       <DataState loading={loading} error={error}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--sw-space-4)' }}>
-          <div className="sw-panel" style={{ padding: 'var(--sw-space-4)' }}>
-            <div className="sw-field__label">Households</div>
-            <div className="sw-page-title" style={{ fontSize: 'var(--sw-fs-xl)' }}>{households.length}</div>
-          </div>
-          <div className="sw-panel" style={{ padding: 'var(--sw-space-4)' }}>
-            <div className="sw-field__label">Billing Cycles</div>
-            <div className="sw-page-title" style={{ fontSize: 'var(--sw-fs-xl)' }}>{cycles.length}</div>
-          </div>
-          <div className="sw-panel" style={{ padding: 'var(--sw-space-4)' }}>
-            <div className="sw-field__label">Tariff Plans</div>
-            <div className="sw-page-title" style={{ fontSize: 'var(--sw-fs-xl)' }}>{tariffs.length}</div>
-          </div>
-          <div className="sw-panel" style={{ padding: 'var(--sw-space-4)' }}>
-            <div className="sw-field__label">Open Cycle</div>
-            <div className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)' }}>
-              {openCycle ? `${openCycle.cycleStartDate} to ${openCycle.cycleEndDate}` : 'None'}
-            </div>
-          </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '20px',
+          }}
+        >
+          <StatCard
+            title="Households"
+            value={households.length}
+            subtitle="Registered households"
+            icon={<FaHome />}
+          />
+
+          <StatCard
+            title="Billing Cycles"
+            value={cycles.length}
+            subtitle="Billing history"
+            icon={<FaFileInvoice />}
+          />
+
+          <StatCard
+            title="Tariff Plans"
+            value={tariffs.length}
+            subtitle="Configured tariff plans"
+            icon={<FaMoneyBillWave />}
+          />
+
+          <StatCard
+            title="Open Cycle"
+            value={openCycle ? 'Active' : 'None'}
+            subtitle={
+              openCycle
+                ? `${openCycle.cycleStartDate} - ${openCycle.cycleEndDate}`
+                : 'No active billing cycle'
+            }
+            icon={<FaCalendarAlt />}
+          />
         </div>
+        <div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "3fr 1.1fr",
+    gap: "20px",
+    marginTop: "32px",
+  }}
+>
+  
+ <DashboardChart data={chartData} />
+
+<div
+  className="sw-panel"
+  style={{
+    padding: "24px",
+    borderRadius: "16px",
+    height: "fit-content",
+    alignSelf: "start",
+  }}
+>
+  <h3 style={{ margin: 0, marginBottom: "20px" }}>
+    Quick Actions
+  </h3>
+
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+    }}
+  >
+    <button
+      className="sw-btn sw-btn--primary"
+      style={{ width: "100%" }}
+      onClick={() => navigate("/admin/billing")}
+    >
+      Open Billing Cycle
+    </button>
+
+    <button
+      className="sw-btn sw-btn--secondary"
+      style={{ width: "100%" }}
+      onClick={() => navigate("/admin/uploads")}
+    >
+      Upload CSV
+    </button>
+
+   <button
+  className="sw-btn sw-btn--secondary"
+  style={{ width: "100%" }}
+  onClick={() => navigate("/admin/billing")}
+>
+  Create Tariff
+</button>
+
+  </div>   {/* button container */}
+</div>     {/* sw-panel */}
+</div>     {/* grid <-- THIS WAS MISSING */}
+
+<div style={{ marginTop: "32px" }}>
+  <RecentBillingTable cycles={cycles} />
+</div>
+
       </DataState>
     </div>
   )
@@ -397,24 +521,219 @@ export function AdminUploadsPage() {
     <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
       <PageHeader title="CSV Upload" subtitle="Bulk import household usage readings and review row outcomes." />
       {error ? <div className="sw-banner sw-banner--error" role="alert">{error}</div> : null}
-      <form className="sw-panel" onSubmit={handleUpload} style={{ padding: 'var(--sw-space-5)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input className="sw-input" type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <button className="sw-btn sw-btn--primary" disabled={!file || loading}>{loading ? 'Uploading...' : 'Upload CSV'}</button>
-      </form>
-      {summary ? (
-        <section className="sw-panel" style={{ padding: 'var(--sw-space-5)' }}>
-          <h2 className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)', marginBottom: 16 }}>Upload Summary</h2>
-          <table className="sw-table">
-            <tbody>
-              <tr><td>Rows Processed</td><td>{summary.rowsProcessed}</td></tr>
-              <tr><td>Inserted</td><td>{summary.rowsInserted}</td></tr>
-              <tr><td>Skipped</td><td>{summary.rowsSkipped}</td></tr>
-              <tr><td>Failed</td><td>{summary.rowsFailed}</td></tr>
-              <tr><td>GREEN / YELLOW / RED</td><td>{summary.greenCount} / {summary.yellowCount} / {summary.redCount}</td></tr>
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+     <form
+  className="sw-panel"
+  onSubmit={handleUpload}
+  style={{
+    padding: "32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+  }}
+>
+  
+  <div>
+    <h2
+      className="sw-page-title"
+      style={{
+        fontSize: "1.35rem",
+        marginBottom: "8px",
+      }}
+    >
+      Upload CSV File
+    </h2>
+
+    <p className="sw-page-subtitle" style={{ margin: 0 }}>
+      Select a CSV file containing household water usage readings.
+    </p>
+  </div>
+
+  <label
+  htmlFor="csv-upload"
+  style={{
+    border: "2px dashed var(--sw-border-strong)",
+    borderRadius: "16px",
+    padding: "28px 24px",
+    textAlign: "center",
+    cursor: "pointer",
+    background: "var(--sw-surface-raised)",
+    transition: "all .2s",
+  }}
+>
+  <div style={{ fontSize: "42px", marginBottom: "12px" }}>
+    📄
+  </div>
+
+  <div
+    style={{
+      fontWeight: 600,
+      marginBottom: "8px",
+    }}
+  >
+    Click to choose a CSV file
+  </div>
+
+  <div
+    style={{
+      color: "var(--sw-text-secondary)",
+      fontSize: ".95rem",
+    }}
+  >
+    CSV files only • Max 5 MB
+  </div>
+
+  <input
+    id="csv-upload"
+    type="file"
+    accept=".csv,text/csv"
+    style={{ display: "none" }}
+    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+  />
+</label>
+
+  {file && (
+    <div
+      className="sw-panel"
+      style={{
+        padding: "16px",
+        background: "var(--sw-surface-raised)",
+      }}
+    >
+      <strong>Selected File</strong>
+
+      <div style={{ marginTop: "8px" }}>
+        {file.name}
+      </div>
+
+      <div
+        style={{
+          color: "var(--sw-text-secondary)",
+          fontSize: "0.9rem",
+        }}
+      >
+        {(file.size / 1024).toFixed(1)} KB
+      </div>
+    </div>
+  )}
+
+  <button
+    className="sw-btn sw-btn--primary"
+    style={{
+      width: "220px",
+      alignSelf: "center",
+    }}
+    disabled={!file || loading}
+  >
+    {loading ? "Uploading..." : "Upload CSV"}
+  </button>
+</form>
+<section
+  className="sw-panel"
+  style={{
+    padding: "32px",
+  }}
+>
+  <h2
+    className="sw-page-title"
+    style={{
+      fontSize: "1.35rem",
+      marginBottom: "20px",
+    }}
+  >
+    CSV Requirements
+  </h2>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(2, 1fr)",
+      gap: "24px",
+    }}
+  >
+    <div>
+      <h3 style={{ marginTop: 0 }}>
+        Accepted Format
+      </h3>
+
+      <ul style={{ lineHeight: "2" }}>
+        <li>CSV (.csv) files only</li>
+        <li>Maximum size: 5 MB</li>
+        <li>UTF-8 encoding recommended</li>
+      </ul>
+    </div>
+
+    <div>
+      <h3 style={{ marginTop: 0 }}>
+        Required Columns
+      </h3>
+
+      <ul style={{ lineHeight: "2" }}>
+        <li>flatNumber</li>
+        <li>readingDate</li>
+        <li>usageLiters</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+{summary && (
+  <>
+    <div
+      className="sw-banner sw-banner--ok"
+      style={{ marginTop: "24px" }}
+    >
+      ✅ CSV uploaded successfully. {summary.rowsInserted} records imported.
+    </div>
+
+    <section
+      className="sw-panel"
+      style={{ padding: "32px" }}
+    >
+      <h2
+        className="sw-page-title"
+        style={{
+          fontSize: "1.2rem",
+          marginBottom: "20px",
+        }}
+      >
+        Upload Summary
+      </h2>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "20px",
+        }}
+      >
+        <StatCard
+          title="Processed"
+          value={summary.rowsProcessed}
+          subtitle="Rows processed"
+        />
+
+        <StatCard
+          title="Inserted"
+          value={summary.rowsInserted}
+          subtitle="Successfully imported"
+        />
+
+        <StatCard
+          title="Skipped"
+          value={summary.rowsSkipped}
+          subtitle="Ignored rows"
+        />
+
+        <StatCard
+          title="Failed"
+          value={summary.rowsFailed}
+          subtitle="Import errors"
+        />
+      </div>
+    </section>
+  </>
+)}
     </div>
   )
 }
@@ -458,6 +777,7 @@ export function ResidentInvoicesPage() {
             <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td>#{invoice.id}</td><td>{invoice.flatNumber}</td><td>{formatMoney(invoice.baseCharge)}</td><td>{formatMoney(invoice.sharedAllocation)}</td><td>{formatMoney(invoice.totalAmount)}</td><td><span className="sw-status sw-status--green">{invoice.status}</span></td></tr>)}</tbody>
           </table>
         </DataState>
+       
       </section>
     </div>
   )

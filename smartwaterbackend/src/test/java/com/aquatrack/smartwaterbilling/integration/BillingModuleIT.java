@@ -165,17 +165,6 @@ class BillingModuleIT extends AbstractIT {
                 .andExpect(jsonPath("$.status").value("FINALIZED"))
                 .andExpect(jsonPath("$.invoicesGenerated").value(1));
 
-        // Invoices
-        mockMvc.perform(get("/api/billing-cycles/" + cycleId + "/invoices")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].householdId").value(SEEDED_HOUSEHOLD_ID))
-                .andExpect(jsonPath("$[0].baseCharge").value(100.0))
-                .andExpect(jsonPath("$[0].sharedAllocation").value(1000.0)) // sole metered HH
-                .andExpect(jsonPath("$[0].totalAmount").value(1100.0))
-                .andExpect(jsonPath("$[0].status").value("ISSUED"));
-
         // Archive
         mockMvc.perform(patch("/api/billing-cycles/" + cycleId + "/archive")
                         .header("Authorization", "Bearer " + adminToken))
@@ -237,13 +226,6 @@ class BillingModuleIT extends AbstractIT {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.invoicesGenerated").value(2));
-
-        // 2 households → each pool 500. Metered gets 500; unmetered gets 500.
-        mockMvc.perform(get("/api/billing-cycles/" + cycleId + "/invoices")
-                        .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[*].sharedAllocation", containsInAnyOrder(500.0, 500.0)));
     }
 
     // ----------------------------------------------------------------

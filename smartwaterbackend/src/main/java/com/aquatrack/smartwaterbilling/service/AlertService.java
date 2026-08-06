@@ -8,6 +8,7 @@ import com.aquatrack.smartwaterbilling.entity.WaterUsageLog;
 import com.aquatrack.smartwaterbilling.entity.enums.AlertType;
 import com.aquatrack.smartwaterbilling.exception.ResourceNotFoundException;
 import com.aquatrack.smartwaterbilling.repository.AlertRepository;
+import com.aquatrack.smartwaterbilling.repository.ApartmentRepository;
 import com.aquatrack.smartwaterbilling.repository.HouseholdRepository;
 import com.aquatrack.smartwaterbilling.repository.UserRepository;
 import com.aquatrack.smartwaterbilling.repository.WaterUsageLogRepository;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,10 +47,12 @@ public class AlertService {
     static final int MIN_HISTORY_SAMPLES = 7;
 
     private final AlertRepository alertRepository;
+    private final ApartmentRepository apartmentRepository;
     private final HouseholdRepository householdRepository;
     private final WaterUsageLogRepository usageLogRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+
 
     @Value("${app.alerts.scheduler.enabled:true}")
     private boolean schedulerEnabled;
@@ -104,6 +108,34 @@ public class AlertService {
         }
         log.info("Leak-detection scan complete — {} household(s) flagged", flagged);
     }
+
+    /**
+     * Checks daily water usage thresholds. Runs daily at midnight.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void checkDailyThresholds() {
+        if (!schedulerEnabled) {
+            return;
+        }
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        for (Household household : householdRepository.findAll()) {
+            List<WaterUsageLog> logs = usageLogRepository.findAllByHouseholdIdAndReadingDate(household.getId(), yesterday);
+            for (WaterUsageLog log : logs) {
+                checkThreshold(household, log.getVolumeUsedLiters(), yesterday);
+            }
+        }
+    }
+
+    /**
+     * Detects water consumption anomalies using standard deviation metric. Runs daily at 1 AM.
+     */
+    @Scheduled(cron = "0 1 * * * *")
+    @Transactional
+    public void detectAnomalies() {
+        scanForLeaks();
+    }
+
 
     /**
      * Evaluates a single household for leak suspicion. Package-visible for tests.
@@ -186,6 +218,17 @@ public class AlertService {
             throw new ResourceNotFoundException("Household", householdId);
         }
         return alertRepository.findAllByHouseholdIdOrderByCreatedAtDesc(householdId).stream()
+                .map(AlertService::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AlertResponse> listRecentAlertsForApartment(Long apartmentId, int days) {
+        if (!apartmentRepository.existsById(apartmentId)) {
+            throw new ResourceNotFoundException("Apartment", apartmentId);
+        }
+        LocalDateTime sinceDate = LocalDateTime.now().minusDays(days);
+        return alertRepository.findAllByApartmentIdRecent(apartmentId, sinceDate).stream()
                 .map(AlertService::toResponse)
                 .toList();
     }

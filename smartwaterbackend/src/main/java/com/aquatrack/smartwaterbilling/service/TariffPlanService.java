@@ -2,6 +2,8 @@ package com.aquatrack.smartwaterbilling.service;
 
 import com.aquatrack.smartwaterbilling.dto.tariff.TariffPlanRequest;
 import com.aquatrack.smartwaterbilling.dto.tariff.TariffPlanResponse;
+import com.aquatrack.smartwaterbilling.dto.tariff.TariffPlanUpdateRequest;
+
 import com.aquatrack.smartwaterbilling.entity.Apartment;
 import com.aquatrack.smartwaterbilling.entity.TariffPlan;
 import com.aquatrack.smartwaterbilling.exception.ResourceNotFoundException;
@@ -36,6 +38,29 @@ public class TariffPlanService {
 
         return toResponse(tariffPlanRepository.save(plan));
     }
+
+    @Transactional
+    public TariffPlanResponse update(Long id, TariffPlanUpdateRequest request) {
+        TariffPlan plan = tariffPlanRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("TariffPlan", id));
+
+        if (request.getTier1LimitKl() != null) {
+            plan.setTier1LimitKl(request.getTier1LimitKl());
+        }
+        if (request.getTier1Rate() != null) {
+            plan.setTier1Rate(request.getTier1Rate());
+        }
+        if (request.getTier2Rate() != null) {
+            plan.setTier2Rate(request.getTier2Rate());
+        }
+        if (request.getEffectiveFromDate() != null) {
+            plan.setEffectiveFromDate(request.getEffectiveFromDate());
+        }
+
+        return toResponse(tariffPlanRepository.save(plan));
+    }
+
+
 
     @Transactional(readOnly = true)
     public List<TariffPlanResponse> listByApartment(Long apartmentId) {

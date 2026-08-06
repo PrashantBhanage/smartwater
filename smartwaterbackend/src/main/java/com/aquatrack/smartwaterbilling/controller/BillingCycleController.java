@@ -2,7 +2,6 @@ package com.aquatrack.smartwaterbilling.controller;
 
 import com.aquatrack.smartwaterbilling.dto.billing.BillingCycleRequest;
 import com.aquatrack.smartwaterbilling.dto.billing.BillingCycleResponse;
-import com.aquatrack.smartwaterbilling.dto.billing.InvoiceResponse;
 import com.aquatrack.smartwaterbilling.service.BillingCycleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -62,9 +61,4 @@ public class BillingCycleController {
         return ResponseEntity.ok(billingCycleService.getById(id));
     }
 
-    @GetMapping("/{id}/invoices")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<InvoiceResponse>> listInvoices(@PathVariable Long id) {
-        return ResponseEntity.ok(billingCycleService.listInvoices(id));
-    }
 }
