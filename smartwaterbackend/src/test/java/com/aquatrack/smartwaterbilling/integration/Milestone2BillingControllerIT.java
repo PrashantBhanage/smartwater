@@ -130,13 +130,18 @@ class Milestone2BillingControllerIT extends AbstractIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].householdId").value(SEEDED_HOUSEHOLD_ID))
-                .andExpect(jsonPath("$[0].sharedCostAllocation").value(5000.00));
+                .andExpect(jsonPath("$[0].sharedCostAllocation").value(5000.00))
+                .andExpect(jsonPath("$[0].baseCharge").value(33.00))
+                .andExpect(jsonPath("$[0].totalCharge").value(5033.00));
 
         // 7. Resident gets their own invoices for the cycle
         mockMvc.perform(get("/api/billing-cycles/" + cycleId + "/invoices")
                         .header("Authorization", "Bearer " + residentToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].householdId").value(SEEDED_HOUSEHOLD_ID))
+                .andExpect(jsonPath("$[0].baseCharge").value(33.00))
+                .andExpect(jsonPath("$[0].totalCharge").value(5033.00));
 
         // 8. Resident checks all their invoices
         mockMvc.perform(get("/api/residents/my-invoices")
