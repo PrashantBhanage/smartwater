@@ -5,6 +5,7 @@ import com.aquatrack.smartwaterbilling.entity.Alert;
 import com.aquatrack.smartwaterbilling.entity.Household;
 import com.aquatrack.smartwaterbilling.entity.User;
 import com.aquatrack.smartwaterbilling.entity.WaterUsageLog;
+import com.aquatrack.smartwaterbilling.entity.enums.AlertSeverity;
 import com.aquatrack.smartwaterbilling.entity.enums.AlertType;
 import com.aquatrack.smartwaterbilling.exception.ResourceNotFoundException;
 import com.aquatrack.smartwaterbilling.repository.AlertRepository;
@@ -76,7 +77,7 @@ public class AlertService {
         }
 
         String message = String.format(
-                "Household %s exceeded daily threshold: %.2f L > %.2f L on %s",
+                "ALERT: Household %s exceeded daily threshold: %.2f L > %.2f L on %s",
                 household.getFlatNumber(),
                 volumeLiters,
                 household.getDailyThresholdLiters(),
@@ -112,7 +113,7 @@ public class AlertService {
     /**
      * Checks daily water usage thresholds. Runs daily at midnight.
      */
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "0 0 0 * * *")
     @Transactional
     public void checkDailyThresholds() {
         if (!schedulerEnabled) {
@@ -130,7 +131,7 @@ public class AlertService {
     /**
      * Detects water consumption anomalies using standard deviation metric. Runs daily at 1 AM.
      */
-    @Scheduled(cron = "0 1 * * * *")
+    @Scheduled(cron = "0 0 1 * * *")
     @Transactional
     public void detectAnomalies() {
         scanForLeaks();
@@ -138,43 +139,83 @@ public class AlertService {
 
 
     /**
-     * Evaluates a single household for leak suspicion. Package-visible for tests.
+     * Evaluates a single household for leak suspicion over the last 30 days.
+     * Package-visible for tests.
      *
-     * @return true if a new LEAK_SUSPECTED alert was created
+     * <p>Computes mean + 2σ over the 30-day window and flags <em>every</em> log
+     * entry whose volume exceeds that threshold (not just the latest reading).
+     * Households with fewer than {@link #MIN_HISTORY_SAMPLES} readings in the
+     * window are skipped (insufficient data — no crash, no false-flag).</p>
+     *
+     * @return true if at least one new LEAK_SUSPECTED alert was created
      */
     @Transactional
     public boolean evaluateLeakForHousehold(Household household) {
-        List<WaterUsageLog> logs = usageLogRepository.findAllByHouseholdId(household.getId());
+        LocalDate windowStart = LocalDate.now().minusDays(30);
+        List<WaterUsageLog> logs = usageLogRepository
+                .findAllByHouseholdIdAndReadingDateBetween(household.getId(), windowStart, LocalDate.now());
         if (logs.size() < MIN_HISTORY_SAMPLES + 1) {
-            return false; // need history + one candidate reading
+            return false; // need history + one candidate reading in the 30-day window
         }
 
         logs = new ArrayList<>(logs);
         logs.sort(Comparator.comparing(WaterUsageLog::getReadingDate));
 
-        WaterUsageLog latest = logs.get(logs.size() - 1);
-        List<BigDecimal> history = logs.subList(0, logs.size() - 1).stream()
+        // Compute mean + 2σ over the entire 30-day window.
+        List<BigDecimal> volumes = logs.stream()
                 .map(WaterUsageLog::getVolumeUsedLiters)
                 .toList();
+        BigDecimal threshold = computeOutlierThreshold(volumes);
 
-        if (!isOutlier(latest.getVolumeUsedLiters(), history)) {
-            return false;
+        boolean flaggedAny = false;
+        for (WaterUsageLog log : logs) {
+            BigDecimal volume = log.getVolumeUsedLiters();
+            if (volume == null || volume.compareTo(threshold) <= 0) {
+                continue;
+            }
+            // Deduplicate: one leak alert per household per reading date
+            if (alertRepository.existsByHouseholdIdAndAlertTypeAndReadingDate(
+                    household.getId(), AlertType.LEAK_SUSPECTED, log.getReadingDate())) {
+                continue;
+            }
+
+            String message = String.format(
+                    "ANOMALY: Household %s usage spike detected (%.2f liters) on %s — > 2σ above 30-day average",
+                    household.getFlatNumber(),
+                    volume,
+                    log.getReadingDate());
+
+            persistAndNotify(household, AlertType.LEAK_SUSPECTED, message,
+                    volume, log.getReadingDate());
+            flaggedAny = true;
+        }
+        return flaggedAny;
+    }
+
+    /**
+     * Computes the outlier threshold (mean + 2×stddev) for a list of volumes.
+     * Requires at least {@link #MIN_HISTORY_SAMPLES} values; otherwise returns
+     * {@code null} (caller treats null as "no threshold → nothing flagged").
+     */
+    private BigDecimal computeOutlierThreshold(List<BigDecimal> volumes) {
+        if (volumes == null || volumes.size() < MIN_HISTORY_SAMPLES) {
+            return null;
         }
 
-        if (alertRepository.existsByHouseholdIdAndAlertTypeAndReadingDate(
-                household.getId(), AlertType.LEAK_SUSPECTED, latest.getReadingDate())) {
-            return false;
+        MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
+        BigDecimal n = BigDecimal.valueOf(volumes.size());
+        BigDecimal sum = volumes.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal mean = sum.divide(n, mc);
+
+        BigDecimal varianceSum = BigDecimal.ZERO;
+        for (BigDecimal v : volumes) {
+            BigDecimal diff = v.subtract(mean);
+            varianceSum = varianceSum.add(diff.multiply(diff));
         }
+        BigDecimal variance = varianceSum.divide(n, mc);
+        double stddev = Math.sqrt(variance.doubleValue());
 
-        String message = String.format(
-                "Potential leak at household %s: latest reading %.2f L on %s is > 2σ above historical average",
-                household.getFlatNumber(),
-                latest.getVolumeUsedLiters(),
-                latest.getReadingDate());
-
-        persistAndNotify(household, AlertType.LEAK_SUSPECTED, message,
-                latest.getVolumeUsedLiters(), latest.getReadingDate());
-        return true;
+        return mean.add(BigDecimal.valueOf(2.0 * stddev));
     }
 
     // ----------------------------------------------------------------
@@ -239,9 +280,13 @@ public class AlertService {
 
     private void persistAndNotify(Household household, AlertType type, String message,
                                    BigDecimal usageLiters, LocalDate readingDate) {
+        AlertSeverity severity = type == AlertType.THRESHOLD_EXCEEDED
+                ? AlertSeverity.MEDIUM
+                : AlertSeverity.HIGH;
         Alert alert = Alert.builder()
                 .household(household)
                 .alertType(type)
+                .severity(severity)
                 .message(message)
                 .usageLiters(usageLiters)
                 .readingDate(readingDate)
@@ -269,6 +314,7 @@ public class AlertService {
                 .householdId(alert.getHousehold().getId())
                 .flatNumber(alert.getHousehold().getFlatNumber())
                 .alertType(alert.getAlertType())
+                .severity(alert.getSeverity())
                 .message(alert.getMessage())
                 .usageLiters(alert.getUsageLiters())
                 .readingDate(alert.getReadingDate())

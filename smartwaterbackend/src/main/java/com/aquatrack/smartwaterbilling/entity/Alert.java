@@ -1,5 +1,6 @@
 package com.aquatrack.smartwaterbilling.entity;
 
+import com.aquatrack.smartwaterbilling.entity.enums.AlertSeverity;
 import com.aquatrack.smartwaterbilling.entity.enums.AlertType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -31,6 +32,11 @@ public class Alert {
     @Column(nullable = false, length = 30)
     private AlertType alertType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private AlertSeverity severity = AlertSeverity.MEDIUM;
+
     @Column(nullable = false)
     private String message;
 
@@ -54,5 +60,6 @@ public class Alert {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         if (this.acknowledged == null) this.acknowledged = false;
+        if (this.severity == null) this.severity = AlertSeverity.MEDIUM;
     }
 }
