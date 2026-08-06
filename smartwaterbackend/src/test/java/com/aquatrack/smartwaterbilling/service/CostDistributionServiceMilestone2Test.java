@@ -118,4 +118,48 @@ class CostDistributionServiceMilestone2Test {
         assertEquals(BigDecimal.valueOf(300.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h2));
         assertEquals(BigDecimal.valueOf(300.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h3));
     }
+
+    @Test
+    @DisplayName("Even distribution via equal non-zero consumption (usage-proportional branch)")
+    void testEvenDistribution_equalConsumption() {
+        // All three households consume the same non-zero volume → usage-proportional branch
+        WaterUsageLog log1 = WaterUsageLog.builder().volumeUsedLiters(BigDecimal.valueOf(2000)).build();
+        WaterUsageLog log2 = WaterUsageLog.builder().volumeUsedLiters(BigDecimal.valueOf(2000)).build();
+        WaterUsageLog log3 = WaterUsageLog.builder().volumeUsedLiters(BigDecimal.valueOf(2000)).build();
+
+        when(usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(101L, cycle.getCycleStartDate(), cycle.getCycleEndDate()))
+                .thenReturn(List.of(log1));
+        when(usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(102L, cycle.getCycleStartDate(), cycle.getCycleEndDate()))
+                .thenReturn(List.of(log2));
+        when(usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(103L, cycle.getCycleStartDate(), cycle.getCycleEndDate()))
+                .thenReturn(List.of(log3));
+
+        // Total usage = 6000 L; each household = 2000/6000 = 1/3 of $900 = $300
+        Map<Household, BigDecimal> distribution = service.distributeApartmentCost(apartment, cycle, BigDecimal.valueOf(900.00));
+
+        assertEquals(BigDecimal.valueOf(300.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h1));
+        assertEquals(BigDecimal.valueOf(300.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h2));
+        assertEquals(BigDecimal.valueOf(300.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h3));
+
+        // Shares must sum exactly to totalApartmentCost
+        BigDecimal sum = distribution.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(BigDecimal.valueOf(900.00).setScale(2, RoundingMode.HALF_UP), sum);
+    }
+
+    @Test
+    @DisplayName("Single household edge case - entire cost goes to it")
+    void testSingleHousehold_getsEntireCost() {
+        // Only one household in the apartment
+        when(householdRepository.findAllByApartmentId(1L)).thenReturn(List.of(h1));
+
+        WaterUsageLog log1 = WaterUsageLog.builder().volumeUsedLiters(BigDecimal.valueOf(5000)).build();
+        when(usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(101L, cycle.getCycleStartDate(), cycle.getCycleEndDate()))
+                .thenReturn(List.of(log1));
+
+        // Distribute $1000 to a single household with all the usage
+        Map<Household, BigDecimal> distribution = service.distributeApartmentCost(apartment, cycle, BigDecimal.valueOf(1000.00));
+
+        assertEquals(BigDecimal.valueOf(1000.00).setScale(2, RoundingMode.HALF_UP), distribution.get(h1));
+        assertEquals(1, distribution.size());
+    }
 }

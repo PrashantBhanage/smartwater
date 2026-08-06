@@ -36,6 +36,10 @@ public class BulkWaterPurchaseController {
             @PathVariable Long apartmentId,
             @RequestParam(name = "cycleStart", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate cycleStart,
             @RequestParam(name = "cycleEnd", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate cycleEnd) {
+        if ((cycleStart == null) != (cycleEnd == null)) {
+            throw new IllegalArgumentException(
+                    "Both cycleStart and cycleEnd must be provided together, or neither");
+        }
         return ResponseEntity.ok(bulkWaterPurchaseService.getPurchases(apartmentId, cycleStart, cycleEnd));
     }
 }

@@ -157,4 +157,18 @@ class Milestone2BillingControllerIT extends AbstractIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))));
     }
+
+    @Test
+    @DisplayName("Bulk purchases - empty date range returns zero summary, not null/exception")
+    void bulkPurchases_emptyRange_returnsZeroSummary() throws Exception {
+        // No purchases exist in July 2024 — the seeded flow only creates one on 2024-06-15.
+        mockMvc.perform(get("/api/apartments/" + SEEDED_APARTMENT_ID + "/bulk-purchases")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("cycleStart", "2024-07-01")
+                        .param("cycleEnd", "2024-07-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalVolumeLiters").value(0))
+                .andExpect(jsonPath("$.totalCost").value(0.00))
+                .andExpect(jsonPath("$.purchases", hasSize(0)));
+    }
 }
