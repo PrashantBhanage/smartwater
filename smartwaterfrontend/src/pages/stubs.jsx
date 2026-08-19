@@ -18,6 +18,8 @@ import {
   purchasesApi,
   tariffApi,
   usageLogsApi,
+  createBulkPurchase,
+  getBulkPurchases,
 } from '../api'
 import { useAuth } from '../context/AuthContext'
 
@@ -69,6 +71,7 @@ export function AdminOverviewPage() {
   const [households, setHouseholds] = useState([])
   const [cycles, setCycles] = useState([])
   const [tariffs, setTariffs] = useState([])
+  const [householdUsageMap, setHouseholdUsageMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -93,8 +96,23 @@ export function AdminOverviewPage() {
 
         setHouseholds(householdData)
         setCycles(cycleData)
-        console.log(cycleData);
         setTariffs(tariffData)
+
+        // Load usage logs for all households to build All-Household Usage Comparison Bar Chart
+        const usagePairs = await Promise.all(
+          householdData.map(async (hh) => {
+            try {
+              const logs = await usageLogsApi.list(hh.id)
+              const totalLiters = logs.reduce((sum, l) => sum + (l.volumeUsedLiters || 0), 0)
+              return [hh.id, totalLiters]
+            } catch {
+              return [hh.id, 0]
+            }
+          })
+        )
+        if (active) {
+          setHouseholdUsageMap(Object.fromEntries(usagePairs))
+        }
       } catch (err) {
         if (active) {
           setError(err.message || 'Failed to load admin overview.')
@@ -114,20 +132,15 @@ export function AdminOverviewPage() {
   }, [user?.apartmentId])
 
   const openCycle = cycles.find((cycle) => cycle.status === 'OPEN')
-  const chartData = [
-  {
-    name: "Households",
-    value: households.length,
-  },
-  {
-    name: "Cycles",
-    value: cycles.length,
-  },
-  {
-    name: "Tariffs",
-    value: tariffs.length,
-  },
-];
+
+  // Live All-Household Usage Comparison Chart Data
+  const chartData = useMemo(() => {
+    if (!households.length) return []
+    return households.map((h) => ({
+      name: `Flat ${h.flatNumber}`,
+      value: householdUsageMap[h.id] ?? 0,
+    }))
+  }, [households, householdUsageMap])
 
   return (
     <div
@@ -147,7 +160,7 @@ export function AdminOverviewPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '20px',
           }}
         >
@@ -183,69 +196,69 @@ export function AdminOverviewPage() {
             icon={<FaCalendarAlt />}
           />
         </div>
+
         <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "3fr 1.1fr",
-    gap: "20px",
-    marginTop: "32px",
-  }}
->
-  
- <DashboardChart data={chartData} />
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '3fr 1.1fr',
+            gap: '20px',
+            marginTop: '32px',
+          }}
+        >
+          <DashboardChart
+            data={chartData}
+            title="All-Household Usage Comparison"
+            subtitle="Total Water Volume Logged per Unit (Liters)"
+          />
 
-<div
-  className="sw-panel"
-  style={{
-    padding: "24px",
-    borderRadius: "16px",
-    height: "fit-content",
-    alignSelf: "start",
-  }}
->
-  <h3 style={{ margin: 0, marginBottom: "20px" }}>
-    Quick Actions
-  </h3>
+          <div
+            className="sw-panel"
+            style={{
+              padding: '24px',
+              borderRadius: '16px',
+              height: 'fit-content',
+              alignSelf: 'start',
+            }}
+          >
+            <h3 style={{ margin: 0, marginBottom: '20px' }}>Quick Actions</h3>
 
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "12px",
-    }}
-  >
-    <button
-      className="sw-btn sw-btn--primary"
-      style={{ width: "100%" }}
-      onClick={() => navigate("/admin/billing")}
-    >
-      Open Billing Cycle
-    </button>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <button
+                className="sw-btn sw-btn--primary"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/admin/billing')}
+              >
+                Open Billing Cycle
+              </button>
 
-    <button
-      className="sw-btn sw-btn--secondary"
-      style={{ width: "100%" }}
-      onClick={() => navigate("/admin/uploads")}
-    >
-      Upload CSV
-    </button>
+              <button
+                className="sw-btn sw-btn--secondary"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/admin/uploads')}
+              >
+                Manual Entry / CSV Upload
+              </button>
 
-   <button
-  className="sw-btn sw-btn--secondary"
-  style={{ width: "100%" }}
-  onClick={() => navigate("/admin/billing")}
->
-  Create Tariff
-</button>
+              <button
+                className="sw-btn sw-btn--secondary"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/admin/billing')}
+              >
+                Create Tariff
+              </button>
+            </div>
+          </div>
+        </div>
 
-  </div>   {/* button container */}
-</div>     {/* sw-panel */}
-</div>     {/* grid <-- THIS WAS MISSING */}
-
-<div style={{ marginTop: "32px" }}>
-  <RecentBillingTable cycles={cycles} />
-</div>
-
+        <div style={{ marginTop: '32px' }}>
+          <RecentBillingTable cycles={cycles} />
+        </div>
       </DataState>
     </div>
   )
@@ -296,7 +309,7 @@ export function AdminBillingPage() {
         billingApi.listByApartment(user.apartmentId),
       ])
       const purchasePairs = await Promise.all(
-        cycleData.map(async (cycle) => [cycle.id, await purchasesApi.listByCycle(cycle.id)]),
+        cycleData.map(async (cycle) => [cycle.id, await purchasesApi.listByCycle(cycle.id).catch(() => [])]),
       )
       setTariffs(tariffData)
       setCycles(cycleData)
@@ -310,33 +323,7 @@ export function AdminBillingPage() {
   }
 
   useEffect(() => {
-    async function load() {
-      if (!user?.apartmentId) {
-        setError('You are not associated with an apartment complex.')
-        setLoading(false)
-        return
-      }
-
-      setLoading(true)
-      try {
-        const [tariffData, cycleData] = await Promise.all([
-          tariffApi.list(user.apartmentId),
-          billingApi.listByApartment(user.apartmentId),
-        ])
-        const purchasePairs = await Promise.all(
-          cycleData.map(async (cycle) => [cycle.id, await purchasesApi.listByCycle(cycle.id)]),
-        )
-        setTariffs(tariffData)
-        setCycles(cycleData)
-        setPurchasesByCycle(Object.fromEntries(purchasePairs))
-        setPurchaseForm((prev) => ({ ...prev, cycleId: prev.cycleId || String(cycleData[0]?.id ?? '') }))
-      } catch (err) {
-        setError(err.message || 'Failed to load billing data.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    loadBilling()
   }, [user?.apartmentId])
 
   async function handleCreateTariff(e) {
@@ -345,8 +332,14 @@ export function AdminBillingPage() {
     setSuccess('')
     setSaving(true)
     try {
-      await tariffApi.create({ apartmentId: user.apartmentId, ...tariffForm })
-      setSuccess('Tariff plan created.')
+      await tariffApi.create({
+        apartmentId: user.apartmentId,
+        tier1LimitKl: Number(tariffForm.tier1LimitKl),
+        tier1Rate: Number(tariffForm.tier1Rate),
+        tier2Rate: Number(tariffForm.tier2Rate),
+        effectiveFromDate: tariffForm.effectiveFromDate,
+      })
+      setSuccess('Tariff plan created successfully.')
       await loadBilling()
     } catch (err) {
       setError(err.message || 'Failed to create tariff plan.')
@@ -362,7 +355,7 @@ export function AdminBillingPage() {
     setSaving(true)
     try {
       await billingApi.open({ apartmentId: user.apartmentId, ...cycleForm })
-      setSuccess('Billing cycle opened.')
+      setSuccess('Billing cycle opened successfully.')
       await loadBilling()
     } catch (err) {
       setError(err.message || 'Failed to open billing cycle.')
@@ -377,15 +370,12 @@ export function AdminBillingPage() {
     setSuccess('')
     setSaving(true)
     try {
-      await purchasesApi.create({
-        apartmentId: user.apartmentId,
-        cycleId: Number(purchaseForm.cycleId),
-        volumePurchasedKl: purchaseForm.volumePurchasedKl,
-        unitCost: purchaseForm.unitCost,
+      await createBulkPurchase(user.apartmentId, {
         purchaseDate: purchaseForm.purchaseDate,
-        source: 'TANKER',
+        volumeLiters: Number(purchaseForm.volumePurchasedKl) * 1000,
+        unitCost: Number(purchaseForm.unitCost),
       })
-      setSuccess('Water purchase recorded.')
+      setSuccess('Bulk water purchase recorded successfully.')
       await loadBilling()
     } catch (err) {
       setError(err.message || 'Failed to record purchase.')
@@ -409,6 +399,21 @@ export function AdminBillingPage() {
     }
   }
 
+  async function archiveCycle(id) {
+    setError('')
+    setSuccess('')
+    setSaving(true)
+    try {
+      await billingApi.archive(id)
+      setSuccess(`Cycle #${id} archived.`)
+      await loadBilling()
+    } catch (err) {
+      setError(err.message || 'Failed to archive cycle.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
       <PageHeader
@@ -421,30 +426,40 @@ export function AdminBillingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--sw-space-5)' }}>
           <form className="sw-panel" onSubmit={handleCreateTariff} style={{ padding: 'var(--sw-space-4)', display: 'grid', gap: 12 }}>
             <h2 className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)' }}>Tariff Config</h2>
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Tier 1 Limit (kL)</label>
             <input className="sw-input" type="number" step="0.001" value={tariffForm.tier1LimitKl} onChange={(e) => setTariffForm({ ...tariffForm, tier1LimitKl: e.target.value })} aria-label="Tier 1 limit KL" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Tier 1 Rate (₹/kL)</label>
             <input className="sw-input" type="number" step="0.01" value={tariffForm.tier1Rate} onChange={(e) => setTariffForm({ ...tariffForm, tier1Rate: e.target.value })} aria-label="Tier 1 rate" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Tier 2 Rate (₹/kL)</label>
             <input className="sw-input" type="number" step="0.01" value={tariffForm.tier2Rate} onChange={(e) => setTariffForm({ ...tariffForm, tier2Rate: e.target.value })} aria-label="Tier 2 rate" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Effective From Date</label>
             <input className="sw-input" type="date" value={tariffForm.effectiveFromDate} onChange={(e) => setTariffForm({ ...tariffForm, effectiveFromDate: e.target.value })} aria-label="Effective from" required />
-            <button className="sw-btn sw-btn--primary" disabled={saving}>Save Tariff</button>
+            <button className="sw-btn sw-btn--primary" disabled={saving}>{saving ? 'Saving...' : 'Save Tariff'}</button>
           </form>
 
           <form className="sw-panel" onSubmit={handleOpenCycle} style={{ padding: 'var(--sw-space-4)', display: 'grid', gap: 12 }}>
             <h2 className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)' }}>Billing Cycles</h2>
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Cycle Start Date</label>
             <input className="sw-input" type="date" value={cycleForm.cycleStartDate} onChange={(e) => setCycleForm({ ...cycleForm, cycleStartDate: e.target.value })} aria-label="Cycle start" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Cycle End Date</label>
             <input className="sw-input" type="date" value={cycleForm.cycleEndDate} onChange={(e) => setCycleForm({ ...cycleForm, cycleEndDate: e.target.value })} aria-label="Cycle end" required />
-            <button className="sw-btn sw-btn--primary" disabled={saving}>Open Cycle</button>
+            <button className="sw-btn sw-btn--primary" disabled={saving}>{saving ? 'Opening...' : 'Open Cycle'}</button>
           </form>
 
           <form className="sw-panel" onSubmit={handleCreatePurchase} style={{ padding: 'var(--sw-space-4)', display: 'grid', gap: 12 }}>
             <h2 className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)' }}>Purchases</h2>
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Select Cycle</label>
             <select className="sw-select" value={purchaseForm.cycleId} onChange={(e) => setPurchaseForm({ ...purchaseForm, cycleId: e.target.value })} required>
               <option value="">Select cycle</option>
               {cycles.map((cycle) => <option key={cycle.id} value={cycle.id}>{cycle.cycleStartDate} to {cycle.cycleEndDate}</option>)}
             </select>
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Volume Purchased (kL)</label>
             <input className="sw-input" type="number" step="0.001" value={purchaseForm.volumePurchasedKl} onChange={(e) => setPurchaseForm({ ...purchaseForm, volumePurchasedKl: e.target.value })} aria-label="Volume purchased KL" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Unit Cost (₹)</label>
             <input className="sw-input" type="number" step="0.01" value={purchaseForm.unitCost} onChange={(e) => setPurchaseForm({ ...purchaseForm, unitCost: e.target.value })} aria-label="Unit cost" required />
+            <label style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Purchase Date</label>
             <input className="sw-input" type="date" value={purchaseForm.purchaseDate} onChange={(e) => setPurchaseForm({ ...purchaseForm, purchaseDate: e.target.value })} aria-label="Purchase date" required />
-            <button className="sw-btn sw-btn--primary" disabled={saving || !purchaseForm.cycleId}>Record Purchase</button>
+            <button className="sw-btn sw-btn--primary" disabled={saving}>{saving ? 'Recording...' : 'Record Purchase'}</button>
           </form>
         </div>
 
@@ -452,7 +467,7 @@ export function AdminBillingPage() {
           <h2 className="sw-page-title" style={{ fontSize: 'var(--sw-fs-lg)', marginBottom: 16 }}>Current Tariffs</h2>
           <DataState loading={false} empty={tariffs.length === 0}>
             <table className="sw-table">
-              <thead><tr><th>Effective</th><th>Tier 1 Limit</th><th>Tier 1 Rate</th><th>Tier 2 Rate</th></tr></thead>
+              <thead><tr><th>Effective Date</th><th>Tier 1 Limit</th><th>Tier 1 Rate</th><th>Tier 2 Rate</th></tr></thead>
               <tbody>{tariffs.map((plan) => <tr key={plan.id}><td>{plan.effectiveFromDate}</td><td>{formatNumber(plan.tier1LimitKl, ' KL')}</td><td>{formatMoney(plan.tier1Rate)}</td><td>{formatMoney(plan.tier2Rate)}</td></tr>)}</tbody>
             </table>
           </DataState>
@@ -473,7 +488,21 @@ export function AdminBillingPage() {
                       <td><span className="sw-status sw-status--neutral">{cycle.status}</span></td>
                       <td>{purchases.length}</td>
                       <td>{formatMoney(totalCost)}</td>
-                      <td>{cycle.status === 'OPEN' ? <button className="sw-btn sw-btn--secondary" disabled={saving} onClick={() => finalizeCycle(cycle.id)}>Finalize</button> : 'Done'}</td>
+                      <td>
+                        {cycle.status === 'OPEN' && (
+                          <button className="sw-btn sw-btn--primary" style={{ minHeight: 30, padding: '0 10px', fontSize: 'var(--sw-fs-xs)' }} disabled={saving} onClick={() => finalizeCycle(cycle.id)}>
+                            Finalize
+                          </button>
+                        )}
+                        {cycle.status === 'FINALIZED' && (
+                          <button className="sw-btn sw-btn--secondary" style={{ minHeight: 30, padding: '0 10px', fontSize: 'var(--sw-fs-xs)' }} disabled={saving} onClick={() => archiveCycle(cycle.id)}>
+                            Archive
+                          </button>
+                        )}
+                        {cycle.status === 'ARCHIVED' && (
+                          <span className="sw-status sw-status--neutral">Archived</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
@@ -487,7 +516,7 @@ export function AdminBillingPage() {
           <DataState loading={false} empty={allPurchases.length === 0}>
             <table className="sw-table">
               <thead><tr><th>Date</th><th>Cycle</th><th>Volume</th><th>Unit Cost</th><th>Total</th><th>Source</th></tr></thead>
-              <tbody>{allPurchases.map((purchase) => <tr key={purchase.id}><td>{purchase.purchaseDate}</td><td>{purchase.cycleId}</td><td>{formatNumber(purchase.volumePurchasedKl, ' KL')}</td><td>{formatMoney(purchase.unitCost)}</td><td>{formatMoney(purchase.totalCost)}</td><td>{purchase.source}</td></tr>)}</tbody>
+              <tbody>{allPurchases.map((purchase) => <tr key={purchase.id}><td>{purchase.purchaseDate}</td><td>{purchase.cycleId ?? '-'}</td><td>{formatNumber(purchase.volumePurchasedKl || (purchase.volumeLiters / 1000), ' KL')}</td><td>{formatMoney(purchase.unitCost)}</td><td>{formatMoney(purchase.totalCost)}</td><td>{purchase.source ?? 'TANKER'}</td></tr>)}</tbody>
             </table>
           </DataState>
         </section>
@@ -497,19 +526,74 @@ export function AdminBillingPage() {
 }
 
 export function AdminUploadsPage() {
+  const { user } = useAuth()
+  const [households, setHouseholds] = useState([])
   const [file, setFile] = useState(null)
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [savingManual, setSavingManual] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  // Manual Reading Form State
+  const [manualForm, setManualForm] = useState({
+    householdId: '',
+    readingDate: new Date().toISOString().slice(0, 10),
+    meterReadingValue: '',
+    volumeUsedLiters: '',
+  })
+
+  useEffect(() => {
+    async function load() {
+      if (!user?.apartmentId) return
+      try {
+        const hhData = await householdsApi.listByApartment(user.apartmentId)
+        setHouseholds(hhData)
+        if (hhData.length > 0) {
+          setManualForm((prev) => ({ ...prev, householdId: String(hhData[0].id) }))
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to load households.')
+      }
+    }
+    load()
+  }, [user?.apartmentId])
+
+  async function handleManualSubmit(e) {
+    e.preventDefault()
+    if (!manualForm.householdId || !manualForm.volumeUsedLiters) return
+    setError('')
+    setSuccess('')
+    setSavingManual(true)
+    try {
+      await usageLogsApi.create({
+        householdId: Number(manualForm.householdId),
+        readingDate: manualForm.readingDate,
+        meterReadingValue: manualForm.meterReadingValue ? Number(manualForm.meterReadingValue) : null,
+        volumeUsedLiters: Number(manualForm.volumeUsedLiters),
+        source: 'MANUAL',
+      })
+      const selectedHh = households.find((h) => String(h.id) === String(manualForm.householdId))
+      setSuccess(`Meter reading of ${manualForm.volumeUsedLiters} L logged successfully for Flat ${selectedHh?.flatNumber || ''}.`)
+      setManualForm((prev) => ({ ...prev, meterReadingValue: '', volumeUsedLiters: '' }))
+    } catch (err) {
+      setError(err.message || 'Failed to submit manual meter reading.')
+    } finally {
+      setSavingManual(false)
+    }
+  }
 
   async function handleUpload(e) {
     e.preventDefault()
     if (!file) return
     setLoading(true)
     setError('')
+    setSuccess('')
     setSummary(null)
     try {
-      setSummary(await usageLogsApi.bulkUpload(file))
+      const res = await usageLogsApi.bulkUpload(file)
+      setSummary(res)
+      setSuccess('CSV bulk upload processed successfully.')
     } catch (err) {
       setError(err.message || 'CSV upload failed.')
     } finally {
@@ -519,309 +603,197 @@ export function AdminUploadsPage() {
 
   return (
     <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
-      <PageHeader title="CSV Upload" subtitle="Bulk import household usage readings and review row outcomes." />
+      <PageHeader title="Usage Logging & CSV Upload" subtitle="Log manual meter readings or bulk import household CSV readings." />
+      
       {error ? <div className="sw-banner sw-banner--error" role="alert">{error}</div> : null}
-     <form
-  className="sw-panel"
-  onSubmit={handleUpload}
-  style={{
-    padding: "32px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "24px",
-  }}
->
-  
-  <div>
-    <h2
-      className="sw-page-title"
-      style={{
-        fontSize: "1.35rem",
-        marginBottom: "8px",
-      }}
-    >
-      Upload CSV File
-    </h2>
+      {success ? <div className="sw-banner sw-banner--ok" role="alert">{success}</div> : null}
 
-    <p className="sw-page-subtitle" style={{ margin: 0 }}>
-      Select a CSV file containing household water usage readings.
-    </p>
-  </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--sw-space-6)' }}>
+        {/* Manual Meter Reading Form */}
+        <form className="sw-panel" onSubmit={handleManualSubmit} style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <h2 className="sw-page-title" style={{ fontSize: '1.35rem', marginBottom: '8px' }}>
+              Manual Meter Reading
+            </h2>
+            <p className="sw-page-subtitle" style={{ margin: 0 }}>
+              POST a single water usage reading for a household.
+            </p>
+          </div>
 
-  <label
-  htmlFor="csv-upload"
-  style={{
-    border: "2px dashed var(--sw-border-strong)",
-    borderRadius: "16px",
-    padding: "28px 24px",
-    textAlign: "center",
-    cursor: "pointer",
-    background: "var(--sw-surface-raised)",
-    transition: "all .2s",
-  }}
->
-  <div style={{ fontSize: "42px", marginBottom: "12px" }}>
-    📄
-  </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)', marginBottom: 6 }}>
+              Select Flat / Household
+            </label>
+            <select
+              className="sw-select"
+              style={{ width: '100%' }}
+              value={manualForm.householdId}
+              onChange={(e) => setManualForm({ ...manualForm, householdId: e.target.value })}
+              required
+            >
+              <option value="">Select Household</option>
+              {households.map((hh) => (
+                <option key={hh.id} value={hh.id}>
+                  Flat {hh.flatNumber} ({hh.hasMeter ? 'Smart Meter' : 'No Meter'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-  <div
-    style={{
-      fontWeight: 600,
-      marginBottom: "8px",
-    }}
-  >
-    Click to choose a CSV file
-  </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)', marginBottom: 6 }}>
+              Reading Date
+            </label>
+            <input
+              className="sw-input"
+              type="date"
+              style={{ width: '100%' }}
+              value={manualForm.readingDate}
+              onChange={(e) => setManualForm({ ...manualForm, readingDate: e.target.value })}
+              required
+            />
+          </div>
 
-  <div
-    style={{
-      color: "var(--sw-text-secondary)",
-      fontSize: ".95rem",
-    }}
-  >
-    CSV files only • Max 5 MB
-  </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)', marginBottom: 6 }}>
+              Cumulative Meter Value (Optional)
+            </label>
+            <input
+              className="sw-input"
+              type="number"
+              step="0.001"
+              style={{ width: '100%' }}
+              placeholder="e.g. 1450.5"
+              value={manualForm.meterReadingValue}
+              onChange={(e) => setManualForm({ ...manualForm, meterReadingValue: e.target.value })}
+            />
+          </div>
 
-  <input
-    id="csv-upload"
-    type="file"
-    accept=".csv,text/csv"
-    style={{ display: "none" }}
-    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-  />
-</label>
+          <div>
+            <label style={{ display: 'block', fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)', marginBottom: 6 }}>
+              Volume Used (Liters) *
+            </label>
+            <input
+              className="sw-input"
+              type="number"
+              step="0.01"
+              style={{ width: '100%' }}
+              placeholder="e.g. 450"
+              value={manualForm.volumeUsedLiters}
+              onChange={(e) => setManualForm({ ...manualForm, volumeUsedLiters: e.target.value })}
+              required
+            />
+          </div>
 
-  {file && (
-    <div
-      className="sw-panel"
-      style={{
-        padding: "16px",
-        background: "var(--sw-surface-raised)",
-      }}
-    >
-      <strong>Selected File</strong>
+          <button
+            className="sw-btn sw-btn--primary"
+            style={{ marginTop: 8 }}
+            disabled={savingManual || !manualForm.householdId}
+          >
+            {savingManual ? 'Submitting...' : 'Submit Reading'}
+          </button>
+        </form>
 
-      <div style={{ marginTop: "8px" }}>
-        {file.name}
+        {/* CSV Bulk Meter Upload Component */}
+        <form
+          className="sw-panel"
+          onSubmit={handleUpload}
+          style={{
+            padding: '32px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+          }}
+        >
+          <div>
+            <h2 className="sw-page-title" style={{ fontSize: '1.35rem', marginBottom: '8px' }}>
+              Upload CSV File
+            </h2>
+            <p className="sw-page-subtitle" style={{ margin: 0 }}>
+              Select a CSV file containing household water usage readings.
+            </p>
+          </div>
+
+          <label
+            htmlFor="csv-upload"
+            style={{
+              border: '2px dashed var(--sw-border-strong)',
+              borderRadius: '16px',
+              padding: '28px 24px',
+              textAlign: 'center',
+              cursor: 'pointer',
+              background: 'var(--sw-surface-raised)',
+              transition: 'all .2s',
+            }}
+          >
+            <div style={{ fontSize: '42px', marginBottom: '12px' }}>📄</div>
+            <div style={{ fontWeight: 600, marginBottom: '8px' }}>
+              {file ? file.name : 'Click to choose a CSV file'}
+            </div>
+            <div style={{ color: 'var(--sw-text-secondary)', fontSize: '.95rem' }}>
+              CSV files only • Max 5 MB
+            </div>
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: 'none' }}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          {file && (
+            <div className="sw-panel" style={{ padding: '16px', background: 'var(--sw-surface-raised)' }}>
+              <strong>Selected File</strong>
+              <div style={{ marginTop: '8px' }}>{file.name}</div>
+              <div style={{ color: 'var(--sw-text-secondary)', fontSize: '0.9rem' }}>
+                {(file.size / 1024).toFixed(1)} KB
+              </div>
+            </div>
+          )}
+
+          <button className="sw-btn sw-btn--primary" style={{ width: '220px', alignSelf: 'center' }} disabled={!file || loading}>
+            {loading ? 'Uploading...' : 'Upload CSV'}
+          </button>
+        </form>
       </div>
 
-      <div
-        style={{
-          color: "var(--sw-text-secondary)",
-          fontSize: "0.9rem",
-        }}
-      >
-        {(file.size / 1024).toFixed(1)} KB
-      </div>
-    </div>
-  )}
+      {summary && (
+        <section className="sw-panel" style={{ padding: '32px' }}>
+          <h2 className="sw-page-title" style={{ fontSize: '1.35rem', marginBottom: '16px' }}>
+            Upload Summary
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
+            <div style={{ padding: 12, background: 'var(--sw-surface-raised)', borderRadius: 8 }}>
+              <div style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Processed</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>{summary.totalProcessed ?? summary.length ?? 0}</div>
+            </div>
+            <div style={{ padding: 12, background: 'var(--sw-surface-raised)', borderRadius: 8 }}>
+              <div style={{ fontSize: 'var(--sw-fs-xs)', color: 'var(--sw-text-secondary)' }}>Success</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--sw-green)' }}>{summary.successCount ?? summary.length ?? 0}</div>
+            </div>
+          </div>
+        </section>
+      )}
 
-  <button
-    className="sw-btn sw-btn--primary"
-    style={{
-      width: "220px",
-      alignSelf: "center",
-    }}
-    disabled={!file || loading}
-  >
-    {loading ? "Uploading..." : "Upload CSV"}
-  </button>
-</form>
-<section
-  className="sw-panel"
-  style={{
-    padding: "32px",
-  }}
->
-  <h2
-    className="sw-page-title"
-    style={{
-      fontSize: "1.35rem",
-      marginBottom: "20px",
-    }}
-  >
-    CSV Requirements
-  </h2>
-
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(2, 1fr)",
-      gap: "24px",
-    }}
-  >
-    <div>
-      <h3 style={{ marginTop: 0 }}>
-        Accepted Format
-      </h3>
-
-      <ul style={{ lineHeight: "2" }}>
-        <li>CSV (.csv) files only</li>
-        <li>Maximum size: 5 MB</li>
-        <li>UTF-8 encoding recommended</li>
-      </ul>
-    </div>
-
-    <div>
-      <h3 style={{ marginTop: 0 }}>
-        Required Columns
-      </h3>
-
-      <ul style={{ lineHeight: "2" }}>
-        <li>flatNumber</li>
-        <li>readingDate</li>
-        <li>usageLiters</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-
-{summary && (
-  <>
-    <div
-      className="sw-banner sw-banner--ok"
-      style={{ marginTop: "24px" }}
-    >
-      ✅ CSV uploaded successfully. {summary.rowsInserted} records imported.
-    </div>
-
-    <section
-      className="sw-panel"
-      style={{ padding: "32px" }}
-    >
-      <h2
-        className="sw-page-title"
-        style={{
-          fontSize: "1.2rem",
-          marginBottom: "20px",
-        }}
-      >
-        Upload Summary
-      </h2>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "20px",
-        }}
-      >
-        <StatCard
-          title="Processed"
-          value={summary.rowsProcessed}
-          subtitle="Rows processed"
-        />
-
-        <StatCard
-          title="Inserted"
-          value={summary.rowsInserted}
-          subtitle="Successfully imported"
-        />
-
-        <StatCard
-          title="Skipped"
-          value={summary.rowsSkipped}
-          subtitle="Ignored rows"
-        />
-
-        <StatCard
-          title="Failed"
-          value={summary.rowsFailed}
-          subtitle="Import errors"
-        />
-      </div>
-    </section>
-  </>
-)}
-    </div>
-  )
-}
-
-export function ResidentInvoicesPage() {
-  const { user } = useAuth()
-  const [invoices, setInvoices] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let active = true
-    async function loadInvoices() {
-      if (!user?.householdId) {
-        setError('No household assigned to your user account.')
-        setLoading(false)
-        return
-      }
-      try {
-        const data = await invoicesApi.listByHousehold(user.householdId)
-        if (active) setInvoices(data)
-      } catch (err) {
-        if (active) setError(err.message || 'Failed to load invoices.')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    loadInvoices()
-    return () => {
-      active = false
-    }
-  }, [user?.householdId])
-
-  return (
-    <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
-      <PageHeader title="Invoices" subtitle="Generated billing history for your household." />
-      <section className="sw-panel" style={{ padding: 'var(--sw-space-5)' }}>
-        <DataState loading={loading} error={error} empty={invoices.length === 0}>
-          <table className="sw-table">
-            <thead><tr><th>Invoice</th><th>Flat</th><th>Base</th><th>Shared</th><th>Total</th><th>Status</th></tr></thead>
-            <tbody>{invoices.map((invoice) => <tr key={invoice.id}><td>#{invoice.id}</td><td>{invoice.flatNumber}</td><td>{formatMoney(invoice.baseCharge)}</td><td>{formatMoney(invoice.sharedAllocation)}</td><td>{formatMoney(invoice.totalAmount)}</td><td><span className="sw-status sw-status--green">{invoice.status}</span></td></tr>)}</tbody>
-          </table>
-        </DataState>
-       
-      </section>
-    </div>
-  )
-}
-
-export function ResidentAlertsPage() {
-  const { user } = useAuth()
-  const [alerts, setAlerts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let active = true
-    async function loadAlerts() {
-      if (!user?.householdId) {
-        setError('No household assigned to your user account.')
-        setLoading(false)
-        return
-      }
-      try {
-        const data = await alertsApi.list(user.householdId)
-        if (active) setAlerts(data)
-      } catch (err) {
-        if (active) setError(err.message || 'Failed to load alerts.')
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    loadAlerts()
-    return () => {
-      active = false
-    }
-  }, [user?.householdId])
-
-  return (
-    <div className="sw-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sw-space-6)' }}>
-      <PageHeader title="Alerts" subtitle="Threshold alerts generated from your household usage readings." />
-      <section className="sw-panel" style={{ padding: 'var(--sw-space-5)' }}>
-        <DataState loading={loading} error={error} empty={alerts.length === 0}>
-          <table className="sw-table">
-            <thead><tr><th>Date</th><th>Flat</th><th>Type</th><th>Usage</th><th>Message</th><th>Status</th></tr></thead>
-            <tbody>{alerts.map((alert) => <tr key={alert.id}><td>{alert.readingDate}</td><td>{alert.flatNumber}</td><td>{alert.alertType}</td><td>{formatNumber(alert.usageLiters, ' L')}</td><td>{alert.message}</td><td>{alert.acknowledged ? 'Acknowledged' : 'Open'}</td></tr>)}</tbody>
-          </table>
-        </DataState>
+      <section className="sw-panel" style={{ padding: '32px' }}>
+        <h2 className="sw-page-title" style={{ fontSize: '1.35rem', marginBottom: '20px' }}>
+          CSV Format Requirements
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
+          <div>
+            <strong>Headers required:</strong>
+            <p style={{ margin: '8px 0 0', fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--sw-text-secondary)' }}>
+              household_id,reading_date,meter_reading_value,volume_used_liters
+            </p>
+          </div>
+          <div>
+            <strong>Example Row:</strong>
+            <p style={{ margin: '8px 0 0', fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--sw-text-secondary)' }}>
+              1,2026-07-15,1450.500,450.00
+            </p>
+          </div>
+        </div>
       </section>
     </div>
   )
