@@ -54,7 +54,6 @@ public class InvoicePdfService {
 
     private static final Color COLOR_HEADER_BG  = new Color(0x1A, 0x73, 0xE8);
     private static final Color COLOR_HEADER_FG  = Color.WHITE;
-    private static final Color COLOR_SECTION_BG = new Color(0xE8, 0xF0, 0xFE);
     private static final Color COLOR_TOTAL_BG   = new Color(0x0D, 0x47, 0xA1);
     private static final Color COLOR_TOTAL_FG   = Color.WHITE;
     private static final Color COLOR_ROW_ALT    = new Color(0xF5, 0xF5, 0xF5);
@@ -127,7 +126,7 @@ public class InvoicePdfService {
                 y -= SECTION_GAP;
                 y = drawTotalDue(cs, invoice, y);
                 y -= SECTION_GAP * 2;
-                drawPaymentInstructions(cs, y);
+                y = drawPaymentInstructions(cs, y);
                 drawFooter(cs);
             }
 
@@ -171,7 +170,7 @@ public class InvoicePdfService {
                                        com.aquatrack.smartwaterbilling.entity.Apartment apartment,
                                        com.aquatrack.smartwaterbilling.entity.BillingCycle cycle,
                                        float y) throws IOException {
-        y = drawSectionHeader(cs, "Household Details", y);
+        y = drawSectionBanner(cs, "Household Details", null, y);
 
         String billingPeriod = cycle != null && cycle.getCycleStartDate() != null && cycle.getCycleEndDate() != null
                 ? cycle.getCycleStartDate().format(DATE_FMT) + " - " + cycle.getCycleEndDate().format(DATE_FMT)
@@ -208,7 +207,7 @@ public class InvoicePdfService {
                                            BigDecimal totalKl,
                                            TariffBreakdown b,
                                            float y) throws IOException {
-        y = drawSectionHeader(cs, "Metered Water Consumption", y);
+        y = drawSectionBanner(cs, "Metered Water Consumption", null, y);
 
         String[][] rows = {
                 {"Total Metered Consumption",
@@ -227,10 +226,8 @@ public class InvoicePdfService {
     }
 
     private float drawSharedAllocation(PDPageContentStream cs, Invoice invoice, float y) throws IOException {
-        y = drawSectionHeader(cs, "Shared-Area Water Cost Allocation", y);
-        font(cs, Standard14Fonts.FontName.HELVETICA, 9, COLOR_MUTED);
-        text(cs, "Proportional share of communal water usage (garden, pool, lobby)", MARGIN + 10, y);
-        y -= LINE_HEIGHT;
+        y = drawSectionBanner(cs, "Shared-Area Water Cost Allocation",
+                "Proportional share of communal water usage (garden, pool, lobby)", y);
 
         float[] colWidths = {CONTENT_WIDTH * 0.77f, CONTENT_WIDTH * 0.23f};
         BigDecimal shared = invoice.getSharedAllocation() != null ? invoice.getSharedAllocation() : BigDecimal.ZERO;
@@ -242,7 +239,7 @@ public class InvoicePdfService {
     }
 
     private float drawAdjustments(PDPageContentStream cs, Invoice invoice, float y) throws IOException {
-        y = drawSectionHeader(cs, "Adjustments", y);
+        y = drawSectionBanner(cs, "Adjustments", null, y);
 
         float[] colWidths = {CONTENT_WIDTH * 0.77f, CONTENT_WIDTH * 0.23f};
         BigDecimal adj = invoice.getAdjustments() != null ? invoice.getAdjustments() : BigDecimal.ZERO;
@@ -271,9 +268,8 @@ public class InvoicePdfService {
         return y - rowH;
     }
 
-    private void drawPaymentInstructions(PDPageContentStream cs, float y) throws IOException {
-        drawSectionHeader(cs, "Payment Instructions", y);
-        y -= LINE_HEIGHT;
+    private float drawPaymentInstructions(PDPageContentStream cs, float y) throws IOException {
+        y = drawSectionBanner(cs, "Payment Instructions", null, y);
 
         String[] lines = {
                 "Please pay the total amount due within 30 days from the invoice issue date.",
@@ -294,6 +290,7 @@ public class InvoicePdfService {
             text(cs, line, MARGIN + 10, y);
             y -= LINE_HEIGHT;
         }
+        return y;
     }
 
     private void drawFooter(PDPageContentStream cs) throws IOException {
@@ -314,13 +311,28 @@ public class InvoicePdfService {
 
     // -- Reusable drawing primitives ----------------------------------------
 
-    private float drawSectionHeader(PDPageContentStream cs, String title, float y) throws IOException {
-        float rowH = 18f;
-        fillRect(cs, MARGIN, y - rowH, CONTENT_WIDTH, rowH, COLOR_SECTION_BG);
-        drawRectBorder(cs, MARGIN, y - rowH, CONTENT_WIDTH, rowH, COLOR_BORDER);
-        font(cs, Standard14Fonts.FontName.HELVETICA_BOLD, 9, COLOR_HEADER_BG);
-        text(cs, title.toUpperCase(), MARGIN + 8, y - rowH + 6);
-        return y - rowH - 2;
+    private float drawSectionBanner(PDPageContentStream cs, String title, String subtitle, float currentY) throws IOException {
+        cs.setNonStrokingColor(new Color(230, 240, 255));
+        cs.addRect(40, currentY - 18, 530, subtitle != null ? 28 : 20);
+        cs.fill();
+
+        cs.beginText();
+        cs.setNonStrokingColor(new Color(24, 119, 242));
+        cs.setFont(PDType1Font.HELVETICA_BOLD, 10);
+        cs.newLineAtOffset(45, currentY - 10);
+        cs.showText(title);
+        cs.endText();
+
+        if (subtitle != null) {
+            cs.beginText();
+            cs.setNonStrokingColor(Color.DARK_GRAY);
+            cs.setFont(PDType1Font.HELVETICA, 8);
+            cs.newLineAtOffset(45, currentY - 22);
+            cs.showText(subtitle);
+            cs.endText();
+            return currentY - 35; // Returns clear Y position below banner & subtitle
+        }
+        return currentY - 25; // Returns clear Y position below banner
     }
 
     private float drawTable(PDPageContentStream cs, String[] headers, String[][] rows,
