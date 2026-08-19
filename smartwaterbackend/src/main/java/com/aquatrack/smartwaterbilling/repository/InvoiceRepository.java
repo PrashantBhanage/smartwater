@@ -16,5 +16,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findByHouseholdIdAndBillingCycleId(Long householdId, Long cycleId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT i FROM Invoice i JOIN FETCH i.household h JOIN FETCH h.apartment a JOIN FETCH i.billingCycle c WHERE i.id = :id")
+    Optional<Invoice> findByIdWithDetails(@org.springframework.data.repository.query.Param("id") Long id);
+
     boolean existsByBillingCycleId(Long cycleId);
 }

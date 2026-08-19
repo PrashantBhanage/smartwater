@@ -2,6 +2,7 @@ package com.aquatrack.smartwaterbilling.controller;
 
 import com.aquatrack.smartwaterbilling.dto.billing.InvoiceResponse;
 import com.aquatrack.smartwaterbilling.entity.Invoice;
+import com.aquatrack.smartwaterbilling.entity.User;
 import com.aquatrack.smartwaterbilling.exception.ResourceNotFoundException;
 import com.aquatrack.smartwaterbilling.repository.InvoiceRepository;
 import com.aquatrack.smartwaterbilling.service.InvoicePdfService;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -28,8 +30,25 @@ public class InvoiceController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InvoiceResponse>> listByHousehold(
-            @RequestParam Long householdId) {
-        return ResponseEntity.ok(invoiceService.listByHousehold(householdId));
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
+        if (householdId != null) {
+            return ResponseEntity.ok(invoiceService.listByHousehold(householdId));
+        }
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            if (user.getHousehold() != null) {
+                return ResponseEntity.ok(invoiceService.listByHousehold(user.getHousehold().getId()));
+            }
+        }
+        return ResponseEntity.ok(List.of());
+    }
+
+    @GetMapping("/resident")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<InvoiceResponse>> getResidentInvoices(
+            @RequestParam(required = false) Long householdId,
+            Authentication authentication) {
+        return listByHousehold(householdId, authentication);
     }
 
     /**
@@ -44,7 +63,7 @@ public class InvoiceController {
     @GetMapping(value = "/{id}/download", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadInvoicePdf(@PathVariable Long id) throws IOException {
-        Invoice invoice = invoiceRepository.findById(id)
+        Invoice invoice = invoiceRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice", id));
 
         byte[] pdfBytes = invoicePdfService.generatePdf(invoice);

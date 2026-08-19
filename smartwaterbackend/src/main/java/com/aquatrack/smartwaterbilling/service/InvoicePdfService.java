@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -83,22 +84,26 @@ public class InvoicePdfService {
         }
 
         var household = invoice.getHousehold();
-        var cycle     = invoice.getBillingCycle();
-        var apartment = household.getApartment();
+        var cycle     = invoice != null ? invoice.getBillingCycle() : null;
+        var apartment = household != null ? household.getApartment() : null;
 
-        List<WaterUsageLog> logs = usageLogRepository
-                .findAllByHouseholdIdAndReadingDateBetween(
-                        household.getId(),
+        Long householdId = household != null ? household.getId() : null;
+        Long apartmentId = apartment != null ? apartment.getId() : null;
+
+        List<WaterUsageLog> logs = (householdId != null && cycle != null)
+                ? usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(
+                        householdId,
                         cycle.getCycleStartDate(),
-                        cycle.getCycleEndDate());
+                        cycle.getCycleEndDate())
+                : List.of();
 
         BigDecimal totalLiters = logs.stream()
-                .map(WaterUsageLog::getVolumeUsedLiters)
+                .map(l -> l.getVolumeUsedLiters() != null ? l.getVolumeUsedLiters() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalKl = totalLiters.divide(LITERS_PER_KL, 4, RoundingMode.HALF_UP);
 
-        TariffBreakdown breakdown = computeBreakdown(totalLiters, apartment.getId(), cycle);
+        TariffBreakdown breakdown = computeBreakdown(totalLiters, apartmentId, cycle);
 
         try (PDDocument doc = new PDDocument();
              ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -106,9 +111,11 @@ public class InvoicePdfService {
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
 
+            String aptName = apartment != null && apartment.getName() != null ? apartment.getName() : "Apartment Complex";
+
             try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
                 float y = PAGE_HEIGHT - MARGIN;
-                y = drawHeader(cs, invoice, apartment.getName(), y);
+                y = drawHeader(cs, invoice, aptName, y);
                 y -= SECTION_GAP;
                 y = drawHouseholdDetails(cs, household, apartment, cycle, y);
                 y -= SECTION_GAP;
@@ -151,8 +158,10 @@ public class InvoicePdfService {
 
         font(cs, Standard14Fonts.FontName.HELVETICA, 9, COLOR_HEADER_FG);
         text(cs, "Invoice #: " + invoice.getId(), rightX, bannerY + bannerH - 40);
-        text(cs, "Issued:    " + invoice.getCreatedAt().format(DATE_FMT), rightX, bannerY + bannerH - 53);
-        text(cs, "Status:    " + invoice.getStatus().name(), rightX, bannerY + bannerH - 66);
+        LocalDateTime createdAt = invoice.getCreatedAt() != null ? invoice.getCreatedAt() : LocalDateTime.now();
+        String statusStr = invoice.getStatus() != null ? invoice.getStatus().name() : "ISSUED";
+        text(cs, "Issued:    " + createdAt.format(DATE_FMT), rightX, bannerY + bannerH - 53);
+        text(cs, "Status:    " + statusStr, rightX, bannerY + bannerH - 66);
 
         return bannerY - 4;
     }
@@ -164,18 +173,19 @@ public class InvoicePdfService {
                                        float y) throws IOException {
         y = drawSectionHeader(cs, "Household Details", y);
 
-        String billingPeriod = cycle.getCycleStartDate().format(DATE_FMT)
-                + " - " + cycle.getCycleEndDate().format(DATE_FMT);
+        String billingPeriod = cycle != null && cycle.getCycleStartDate() != null && cycle.getCycleEndDate() != null
+                ? cycle.getCycleStartDate().format(DATE_FMT) + " - " + cycle.getCycleEndDate().format(DATE_FMT)
+                : "-";
 
         String[] labels = {"Apartment:", "Flat / Unit:", "Billing Period:",
                            "Metered:",   "Area (sqft):", "Occupancy:"};
         String[] values = {
-                apartment.getName(),
-                household.getFlatNumber(),
+                apartment != null && apartment.getName() != null ? apartment.getName() : "-",
+                household != null && household.getFlatNumber() != null ? household.getFlatNumber() : "-",
                 billingPeriod,
-                Boolean.TRUE.equals(household.getHasMeter()) ? "Yes" : "No",
-                household.getAreaSqft() != null ? household.getAreaSqft().toPlainString() : "-",
-                String.valueOf(household.getOccupancyCount())
+                household != null && Boolean.TRUE.equals(household.getHasMeter()) ? "Yes" : "No",
+                household != null && household.getAreaSqft() != null ? household.getAreaSqft().toPlainString() : "-",
+                household != null ? String.valueOf(household.getOccupancyCount()) : "-"
         };
 
         float colLeft  = MARGIN + 10;
@@ -223,9 +233,10 @@ public class InvoicePdfService {
         y -= LINE_HEIGHT;
 
         float[] colWidths = {CONTENT_WIDTH * 0.77f, CONTENT_WIDTH * 0.23f};
+        BigDecimal shared = invoice.getSharedAllocation() != null ? invoice.getSharedAllocation() : BigDecimal.ZERO;
         String[][] rows = {
                 {"Shared-area allocation (based on flat size / occupancy)",
-                 "Rs. " + invoice.getSharedAllocation().setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString()}
+                 "Rs. " + shared.setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString()}
         };
         return drawTable(cs, new String[]{"Description", "Amount"}, rows, colWidths, y, false);
     }
@@ -234,7 +245,7 @@ public class InvoicePdfService {
         y = drawSectionHeader(cs, "Adjustments", y);
 
         float[] colWidths = {CONTENT_WIDTH * 0.77f, CONTENT_WIDTH * 0.23f};
-        BigDecimal adj = invoice.getAdjustments();
+        BigDecimal adj = invoice.getAdjustments() != null ? invoice.getAdjustments() : BigDecimal.ZERO;
         String adjDisplay = (adj.compareTo(BigDecimal.ZERO) < 0)
                 ? "- Rs. " + adj.abs().setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString()
                 : "Rs. " + adj.setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString();
@@ -252,7 +263,8 @@ public class InvoicePdfService {
         font(cs, Standard14Fonts.FontName.HELVETICA_BOLD, 12, COLOR_TOTAL_FG);
         text(cs, "TOTAL AMOUNT DUE", MARGIN + 10, y - rowH + 9);
 
-        String total = "Rs. " + invoice.getTotalAmount().setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString();
+        BigDecimal totalAmt = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+        String total = "Rs. " + totalAmt.setScale(MONEY_SCALE, RoundingMode.HALF_UP).toPlainString();
         float totalW = approximateTextWidth(total, 12);
         text(cs, total, PAGE_WIDTH - MARGIN - totalW - 10, y - rowH + 9);
 
