@@ -15,7 +15,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -62,7 +61,7 @@ public class InvoiceController {
      */
     @GetMapping(value = "/{id}/download", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<byte[]> downloadInvoicePdf(@PathVariable Long id) throws IOException {
+    public ResponseEntity<byte[]> downloadInvoicePdf(@PathVariable Long id) {
         Invoice invoice = invoiceRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice", id));
 

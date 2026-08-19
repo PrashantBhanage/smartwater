@@ -5,6 +5,7 @@ import com.aquatrack.smartwaterbilling.entity.TariffPlan;
 import com.aquatrack.smartwaterbilling.entity.WaterUsageLog;
 import com.aquatrack.smartwaterbilling.repository.WaterUsageLogRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -39,6 +40,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InvoicePdfService {
 
     private final WaterUsageLogRepository usageLogRepository;
@@ -71,25 +73,40 @@ public class InvoicePdfService {
     /**
      * Generates a PDF invoice for the given {@link Invoice} and returns the raw bytes.
      *
+     * <p>Execution is wrapped so that unexpected PDFBox/rendering failures are logged
+     * and surfaced as a clear {@link IllegalStateException} instead of a raw,
+     * unexplained exception propagating out of the HTTP layer.
+     *
      * @param invoice fully-loaded Invoice (with household, billingCycle, apartment relations)
      * @return PDF as a byte array
      * @throws IllegalArgumentException if invoice is null
-     * @throws IOException              if PDF assembly fails
      */
     @Transactional(readOnly = true)
-    public byte[] generatePdf(Invoice invoice) throws IOException {
+    public byte[] generatePdf(Invoice invoice) {
         if (invoice == null) {
             throw new IllegalArgumentException("Invoice must not be null");
         }
+        try {
+            return renderPdf(invoice);
+        } catch (IOException e) {
+            log.error("PDF generation failed for invoice id={}", invoice.getId(), e);
+            throw new IllegalStateException("Failed to generate invoice PDF for id=" + invoice.getId(), e);
+        } catch (RuntimeException e) {
+            log.error("PDF generation failed for invoice id={}", invoice.getId(), e);
+            throw e;
+        }
+    }
 
+    private byte[] renderPdf(Invoice invoice) throws IOException {
         var household = invoice.getHousehold();
-        var cycle     = invoice != null ? invoice.getBillingCycle() : null;
+        var cycle     = invoice.getBillingCycle();
         var apartment = household != null ? household.getApartment() : null;
 
         Long householdId = household != null ? household.getId() : null;
         Long apartmentId = apartment != null ? apartment.getId() : null;
 
-        List<WaterUsageLog> logs = (householdId != null && cycle != null)
+        List<WaterUsageLog> logs = (householdId != null && cycle != null
+                && cycle.getCycleStartDate() != null && cycle.getCycleEndDate() != null)
                 ? usageLogRepository.findAllByHouseholdIdAndReadingDateBetween(
                         householdId,
                         cycle.getCycleStartDate(),
@@ -156,7 +173,8 @@ public class InvoicePdfService {
         text(cs, "INVOICE", rightX, bannerY + bannerH - 25);
 
         font(cs, Standard14Fonts.FontName.HELVETICA, 9, COLOR_HEADER_FG);
-        text(cs, "Invoice #: " + invoice.getId(), rightX, bannerY + bannerH - 40);
+        String invoiceNumber = invoice.getId() != null ? String.valueOf(invoice.getId()) : "-";
+        text(cs, "Invoice #: " + invoiceNumber, rightX, bannerY + bannerH - 40);
         LocalDateTime createdAt = invoice.getCreatedAt() != null ? invoice.getCreatedAt() : LocalDateTime.now();
         String statusStr = invoice.getStatus() != null ? invoice.getStatus().name() : "ISSUED";
         text(cs, "Issued:    " + createdAt.format(DATE_FMT), rightX, bannerY + bannerH - 53);
@@ -184,7 +202,8 @@ public class InvoicePdfService {
                 billingPeriod,
                 household != null && Boolean.TRUE.equals(household.getHasMeter()) ? "Yes" : "No",
                 household != null && household.getAreaSqft() != null ? household.getAreaSqft().toPlainString() : "-",
-                household != null ? String.valueOf(household.getOccupancyCount()) : "-"
+                household != null && household.getOccupancyCount() != null
+                        ? String.valueOf(household.getOccupancyCount()) : "-"
         };
 
         float colLeft  = MARGIN + 10;
@@ -318,7 +337,7 @@ public class InvoicePdfService {
 
         cs.beginText();
         cs.setNonStrokingColor(new Color(24, 119, 242));
-        cs.setFont(PDType1Font.HELVETICA_BOLD, 10);
+        cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
         cs.newLineAtOffset(45, currentY - 10);
         cs.showText(title);
         cs.endText();
@@ -326,7 +345,7 @@ public class InvoicePdfService {
         if (subtitle != null) {
             cs.beginText();
             cs.setNonStrokingColor(Color.DARK_GRAY);
-            cs.setFont(PDType1Font.HELVETICA, 8);
+            cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 8);
             cs.newLineAtOffset(45, currentY - 22);
             cs.showText(subtitle);
             cs.endText();
@@ -419,6 +438,11 @@ public class InvoicePdfService {
             // Return a placeholder breakdown for zero consumption
             return new TariffBreakdown(BigDecimal.ONE, BigDecimal.TEN, BigDecimal.valueOf(15),
                     BigDecimal.ZERO, BigDecimal.ZERO, zero, zero, zero, BigDecimal.ZERO);
+        }
+
+        if (cycle == null || cycle.getCycleEndDate() == null) {
+            throw new IllegalArgumentException(
+                    "Invoice is missing billing cycle data; cannot compute tiered consumption");
         }
 
         TariffPlan plan = tariffPlanService.requireActivePlan(apartmentId, cycle.getCycleEndDate());
