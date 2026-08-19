@@ -109,6 +109,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Apache PDFBox — PDF invoice generation -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
         <!-- ===== TEST DEPENDENCIES ===== -->
         <!-- H2 in-memory DB for integration tests (PostgreSQL compatibility mode) -->
         <dependency>
