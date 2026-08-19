@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { billingApi, finalizeBillingCycle, getInvoices } from '../api'
+import { billingApi, finalizeBillingCycle, getInvoices, invoicesApi } from '../api'
 
 function formatMoney(value) {
   return Number(value ?? 0).toLocaleString(undefined, {
@@ -20,6 +20,7 @@ export default function AdminCycleInvoicesPage() {
   const [error, setError] = useState('')
   const [confirmCycle, setConfirmCycle] = useState(null)
   const [summary, setSummary] = useState(null)
+  const [downloadingId, setDownloadingId] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -96,6 +97,18 @@ export default function AdminCycleInvoicesPage() {
       setConfirmCycle(null)
     } finally {
       setFinalizing(false)
+    }
+  }
+
+  const handleDownloadPdf = async (invoiceId) => {
+    if (!invoiceId) return
+    setDownloadingId(invoiceId)
+    try {
+      await invoicesApi.downloadPdf(invoiceId)
+    } catch (err) {
+      alert('Failed to download invoice PDF: ' + (err.message || 'Server error'))
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -177,22 +190,39 @@ export default function AdminCycleInvoicesPage() {
                   <th>Shared Allocation</th>
                   <th>Total Charge</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td>{invoice.flatNumber}</td>
-                    <td>{formatMoney(invoice.baseCharge)}</td>
-                    <td>{formatMoney(invoice.sharedCostAllocation)}</td>
-                    <td><strong>{formatMoney(invoice.totalCharge)}</strong></td>
-                    <td>
-                      <span className={`sw-status ${invoice.paidStatus === 'PAID' ? 'sw-status--green' : 'sw-status--red'}`}>
-                        {invoice.paidStatus}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {invoices.map((invoice) => {
+                  const totalAmt = invoice.totalAmount ?? invoice.totalCharge
+                  const sharedAlloc = invoice.sharedAllocation ?? invoice.sharedCostAllocation
+                  const statusVal = invoice.status ?? invoice.paidStatus ?? 'ISSUED'
+
+                  return (
+                    <tr key={invoice.id}>
+                      <td>Flat {invoice.flatNumber}</td>
+                      <td>{formatMoney(invoice.baseCharge)}</td>
+                      <td>{formatMoney(sharedAlloc)}</td>
+                      <td><strong>{formatMoney(totalAmt)}</strong></td>
+                      <td>
+                        <span className={`sw-status ${statusVal === 'PAID' ? 'sw-status--green' : 'sw-status--red'}`}>
+                          {statusVal}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="sw-btn sw-btn--secondary"
+                          style={{ minHeight: 30, padding: '0 10px', fontSize: 'var(--sw-fs-xs)' }}
+                          disabled={downloadingId === invoice.id}
+                          onClick={() => handleDownloadPdf(invoice.id)}
+                        >
+                          {downloadingId === invoice.id ? 'Downloading...' : '📄 Download PDF'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -272,19 +302,7 @@ export default function AdminCycleInvoicesPage() {
             <div style={{ display: 'grid', gap: 'var(--sw-space-3)', margin: 'var(--sw-space-4) 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sw-border)', paddingBottom: '8px' }}>
                 <span style={{ color: 'var(--sw-text-secondary)' }}>Invoices Generated</span>
-                <strong>{summary.invoicesGenerated}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sw-border)', paddingBottom: '8px' }}>
-                <span style={{ color: 'var(--sw-text-secondary)' }}>Total Base Charge</span>
-                <span>{formatMoney(summary.totalBaseCharge)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--sw-border)', paddingBottom: '8px' }}>
-                <span style={{ color: 'var(--sw-text-secondary)' }}>Total Shared Allocation</span>
-                <span>{formatMoney(summary.totalSharedAllocation)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
-                <span style={{ fontWeight: 'bold' }}>Total Invoice Amount</span>
-                <strong style={{ fontSize: 'var(--sw-fs-md)' }}>{formatMoney(summary.totalAmount)}</strong>
+                <strong>{summary.invoicesGenerated ?? summary.length ?? 0}</strong>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 12, marginTop: 'var(--sw-space-5)', justifyContent: 'flex-end' }}>
