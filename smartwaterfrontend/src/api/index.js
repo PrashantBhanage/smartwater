@@ -57,6 +57,18 @@ export const billingApi = {
 export const invoicesApi = {
   listByHousehold: (householdId) =>
     api.get('/invoices', { params: { householdId } }).then((r) => r.data),
+  downloadPdf: (id) =>
+    api.get(`/invoices/${id}/download`, { responseType: 'blob' }).then((r) => {
+      const blob = new Blob([r.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `invoice_${id}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    }),
 }
 
 export const alertsApi = {
@@ -71,8 +83,12 @@ export const finalizeBillingCycle = (cycleId) =>
 export const getInvoices = (cycleId) =>
   api.get(`/billing-cycles/${cycleId}/invoices`).then((r) => r.data);
 
-export const getMyInvoices = () =>
-  api.get('/residents/my-invoices').then((r) => r.data);
+export const getMyInvoices = (householdId) => {
+  if (householdId) {
+    return invoicesApi.listByHousehold(householdId)
+  }
+  return api.get('/residents/my-invoices').then((r) => r.data).catch(() => [])
+}
 
 // Milestone 2 Bulk purchase APIs
 export const createBulkPurchase = (apartmentId, data) =>
