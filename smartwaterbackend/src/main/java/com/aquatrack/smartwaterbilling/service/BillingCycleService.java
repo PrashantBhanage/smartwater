@@ -9,6 +9,7 @@ import com.aquatrack.smartwaterbilling.entity.enums.InvoiceStatus;
 import com.aquatrack.smartwaterbilling.exception.DuplicateEntryException;
 import com.aquatrack.smartwaterbilling.exception.ResourceNotFoundException;
 import com.aquatrack.smartwaterbilling.repository.*;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import java.util.Map;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BillingCycleService {
 
     private final BillingCycleRepository billingCycleRepository;
@@ -36,6 +38,7 @@ public class BillingCycleService {
     private final TariffPlanService tariffPlanService;
     private final TariffBillingEngine tariffBillingEngine;
     private final CostDistributionService costDistributionService;
+    private final EmailNotificationService emailNotificationService;
 
     // ----------------------------------------------------------------
     // Open
@@ -117,8 +120,14 @@ public class BillingCycleService {
                     .adjustments(BigDecimal.ZERO.setScale(2))
                     .status(InvoiceStatus.ISSUED)
                     .build();
-            invoice.recomputeTotal();
-            invoiceRepository.save(invoice);
+            Invoice savedInvoice = invoiceRepository.save(invoice);
+            if (emailNotificationService != null) {
+                try {
+                    emailNotificationService.sendBillingAlert(savedInvoice);
+                } catch (Exception e) {
+                    log.warn("Failed to dispatch billing alert email for invoice {}: {}", savedInvoice.getId(), e.getMessage());
+                }
+            }
             generated++;
         }
 
