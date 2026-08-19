@@ -53,6 +53,7 @@ public class AlertService {
     private final WaterUsageLogRepository usageLogRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final EmailNotificationService emailNotificationService;
 
 
     @Value("${app.alerts.scheduler.enabled:true}")
@@ -298,6 +299,18 @@ public class AlertService {
         notificationService.notifyAlert(recipient,
                 "[SmartWater] " + type.name().replace('_', ' '),
                 message);
+
+        if (emailNotificationService != null) {
+            try {
+                if (type == AlertType.THRESHOLD_EXCEEDED) {
+                    emailNotificationService.sendOveruseWarning(household, usageLiters, readingDate);
+                } else if (type == AlertType.LEAK_SUSPECTED) {
+                    emailNotificationService.sendLeakAlert(household, usageLiters, readingDate);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to dispatch email alert for type {}: {}", type, e.getMessage());
+            }
+        }
     }
 
     private String resolveRecipient(Household household) {
